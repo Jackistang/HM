@@ -1,6 +1,8 @@
 #ifndef HCI_TRANSPORT_CHIPSET
 #define HCI_TRANSPORT_CHIPSET
 
+#include <stdint.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
