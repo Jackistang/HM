@@ -16,7 +16,7 @@ typedef enum {
     HCI_TRANSPORT_H4_ISO,
 } HCI_TRANSPORT_H4_PACKAGE_TYPE;
 
-int rt_hci_transport_h4_send_command(HCI_TRANSPORT_H4_PACKAGE_TYPE type, uint8_t *buf, size_t size);
+int rt_hci_transport_h4_send(HCI_TRANSPORT_H4_PACKAGE_TYPE type, uint8_t *buf, size_t size);
 
 void rt_hci_transport_h4_register_callback(void (*package_callback)(uint8_t type, uint8_t *buf, size_t size));
 

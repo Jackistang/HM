@@ -9,11 +9,11 @@
 
 
 struct hci_transport_uart_config config = {
-    .device_name = "/dev/ttyUSB0",
+    .device_name = "/dev/ttyACM0",
     .parity      = UART_PARITY_NONE,
     .stopbit     = UART_STOPBIT_1_BIT,
     .databit     = UART_DATABIT_8_BIT,
-    .baudrate    = 115200,
+    .baudrate    = 1000000,
     .flowcontrol = true,
 };
 
@@ -39,14 +39,15 @@ int clean_suite(void)
 
 void test_rt_hci_transport_uart(void)
 {
-    uint8_t send_buf[] = {0x1, 0x2, 0x3};
+    uint8_t send_buf[] = {0x01, 0x03, 0x0C, 0x00};  // HCI Reset.
     int len = rt_hci_transport_uart_send(send_buf, ARRAY_SIZE(send_buf));
-    CU_ASSERT_EQUAL(len, 3);
+    CU_ASSERT_EQUAL(len, ARRAY_SIZE(send_buf));
 
-    uint8_t recv_buf[6];
+    uint8_t recv_buf[7];
+    uint8_t recv_buf_expect[] = {0x04, 0x0E, 0x04, 0x01, 0x03, 0x0C, 0x00}; // Command complete event.
     len = rt_hci_transport_uart_recv(recv_buf, ARRAY_SIZE(recv_buf));
-    CU_ASSERT_EQUAL(len, 3);
-    CU_ASSERT_ARRAY_EQUAL(recv_buf, send_buf, len);
+    CU_ASSERT_EQUAL(len, ARRAY_SIZE(recv_buf_expect));
+    CU_ASSERT_ARRAY_EQUAL(recv_buf, recv_buf_expect, ARRAY_SIZE(recv_buf_expect));
 }
 
 
