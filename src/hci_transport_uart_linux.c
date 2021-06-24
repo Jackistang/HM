@@ -15,8 +15,9 @@ enum {
     UART_TYPE_INIT,
 };
 
-static int set_baudrate(struct termios * toptions, uint32_t baudrate)
+static int set_baudrate(struct termios * toptions, void *args)
 {
+    uint32_t baudrate = *(uint32_t *)args;
     printf("h4_set_baudrate %u\n", baudrate);
 
     speed_t brate = baudrate; // let you override switch below if needed
@@ -75,8 +76,10 @@ static int set_baudrate(struct termios * toptions, uint32_t baudrate)
     return 0;
 }
 
-static int set_parity(struct termios * toptions, int parity)
+static int set_parity(struct termios * toptions, void *args)
 {
+    int parity = *(int *)args;
+
     switch (parity){
         case UART_PARITY_NONE:
             toptions->c_cflag &= ~PARENB;
@@ -95,8 +98,10 @@ static int set_parity(struct termios * toptions, int parity)
     return 0;
 }
 
-static int set_stopbit(struct termios * toptions, int stopbit)
+static int set_stopbit(struct termios * toptions, void *args)
 {
+    int stopbit = *(int *)args;
+
     switch (stopbit) {
     case UART_STOPBIT_1_BIT:
         toptions->c_cflag &= ~CSTOPB;
@@ -111,8 +116,10 @@ static int set_stopbit(struct termios * toptions, int stopbit)
     return 0;
 }
 
-static int set_databit(struct termios * toptions, int databit)
+static int set_databit(struct termios * toptions, void *args)
 {
+    int databit = *(int *)args;
+
     toptions->c_cflag &= ~CSIZE;
     switch (databit) {
     case UART_DATABIT_5_BIT:
@@ -133,8 +140,10 @@ static int set_databit(struct termios * toptions, int databit)
     }
 }
 
-static int set_flowcontrol(struct termios * toptions, bool flowcontrol)
+static int set_flowcontrol(struct termios * toptions, void *args)
 {
+    bool flowcontrol = *(bool *)args;
+
     if (flowcontrol) {
         // with flow control
         toptions->c_cflag |= CRTSCTS;
@@ -159,19 +168,19 @@ static int hci_transport_uart_set_params(int type, void *params)
     case UART_TYPE_INIT:
         toptions.c_cflag |= CREAD;
     case UART_TYPE_BAUDRATE:
-        set_baudrate(&toptions, *(uint32_t *)params);
+        set_baudrate(&toptions, params);
         break;
     case UART_TYPE_DATABIT:
-        set_databit(&toptions, *(int *)params);
+        set_databit(&toptions, params);
         break;
     case UART_TYPE_STOPBIT:
-        set_stopbit(&toptions, *(int *)params);
+        set_stopbit(&toptions, params);
         break;
     case UART_TYPE_PARITY:
-        set_parity(&toptions, *(int *)params);
+        set_parity(&toptions, params);
         break;
     case UART_TYPE_FLOWCONTROL:
-        set_flowcontrol(&toptions, *(bool *)params);
+        set_flowcontrol(&toptions, params);
         break;
     default:
         break;
