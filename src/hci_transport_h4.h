@@ -1,5 +1,5 @@
-#ifndef HCI_TRANSPORT_H4
-#define HCI_TRANSPORT_H4
+#ifndef HCI_TRANSPORT_H4_H
+#define HCI_TRANSPORT_H4_H
 
 #include <stdint.h>
 #include <stddef.h>
@@ -25,4 +25,4 @@ extern void rt_hci_transport_h4_loop(void);
 }
 #endif
 
-#endif /* HCI_TRANSPORT_H4 */
+#endif /* HCI_TRANSPORT_H4_H */

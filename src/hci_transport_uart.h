@@ -1,5 +1,5 @@
-#ifndef HCI_TRANSPORT_UART
-#define HCI_TRANSPORT_UART
+#ifndef HCI_TRANSPORT_UART_H
+#define HCI_TRANSPORT_UART_H
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -45,4 +45,4 @@ extern int rt_hci_transport_uart_recv(uint8_t *buffer, uint16_t length);
 }
 #endif
 
-#endif /* HCI_TRANSPORT_UART */
+#endif /* HCI_TRANSPORT_UART_H */

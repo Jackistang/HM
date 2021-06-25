@@ -1,5 +1,5 @@
-#ifndef HCI_TRANSPORT_CHIPSET
-#define HCI_TRANSPORT_CHIPSET
+#ifndef HCI_TRANSPORT_CHIPSET_H
+#define HCI_TRANSPORT_CHIPSET_H
 
 #include <stdint.h>
 
@@ -57,4 +57,4 @@ extern void rt_chipset_init(void);
 }
 #endif
 
-#endif /* HCI_TRANSPORT_CHIPSET */
+#endif /* HCI_TRANSPORT_CHIPSET_H */
