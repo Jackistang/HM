@@ -2,6 +2,7 @@
 #define HCI_MIDDLEWARE_OS_TYPES_H
 
 #include <stdint.h>
+#include <stdbool.h>
 #include <pthread.h>
 #include <semaphore.h>
 

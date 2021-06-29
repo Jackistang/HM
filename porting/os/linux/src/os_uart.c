@@ -1,4 +1,4 @@
-#include "hci_transport_uart.h"
+#include "os_port.h"
 #include <termios.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -81,15 +81,15 @@ static int set_parity(struct termios * toptions, void *args)
     int parity = *(int *)args;
 
     switch (parity){
-        case UART_PARITY_NONE:
+        case OS_UART_PARITY_NONE:
             toptions->c_cflag &= ~PARENB;
             toptions->c_cflag &= ~PARODD;
             break;
-        case UART_PARITY_EVEN:
+        case OS_UART_PARITY_EVEN:
             toptions->c_cflag |=  PARENB;
             toptions->c_cflag &= ~PARODD;
             break;
-        case UART_PARITY_ODD:
+        case OS_UART_PARITY_ODD:
             toptions->c_cflag |= PARENB;
             toptions->c_cflag |= PARODD;
         default:
@@ -103,10 +103,10 @@ static int set_stopbit(struct termios * toptions, void *args)
     int stopbit = *(int *)args;
 
     switch (stopbit) {
-    case UART_STOPBIT_1_BIT:
+    case OS_UART_STOPBIT_1_BIT:
         toptions->c_cflag &= ~CSTOPB;
         break;
-    case UART_STOPBIT_2_BIT:
+    case OS_UART_STOPBIT_2_BIT:
         toptions->c_cflag |= CSTOPB;
         break;
     default:
@@ -122,16 +122,16 @@ static int set_databit(struct termios * toptions, void *args)
 
     toptions->c_cflag &= ~CSIZE;
     switch (databit) {
-    case UART_DATABIT_5_BIT:
+    case OS_UART_DATABIT_5_BIT:
         toptions->c_cflag |= CS5;
         break;
-    case UART_DATABIT_6_BIT:
+    case OS_UART_DATABIT_6_BIT:
         toptions->c_cflag |= CS6;
         break;
-    case UART_DATABIT_7_BIT:
+    case OS_UART_DATABIT_7_BIT:
         toptions->c_cflag |= CS7;
         break;
-    case UART_DATABIT_8_BIT:
+    case OS_UART_DATABIT_8_BIT:
         toptions->c_cflag |= CS8;
         break;
     default:
@@ -198,7 +198,7 @@ static int hci_transport_uart_set_params(int type, void *params)
     return 0;
 }
 
-int rt_hci_transport_uart_init(struct hci_transport_uart_config *config)
+int os_uart_init(struct os_uart_config *config)
 {
     fd = open(config->device_name, O_RDWR | O_NOCTTY);
     if (fd == -1) {
@@ -221,7 +221,7 @@ int rt_hci_transport_uart_init(struct hci_transport_uart_config *config)
     return 0;
 }
 
-int rt_hci_transport_uart_send(uint8_t *buffer, uint16_t length)
+int os_uart_send(uint8_t *buffer, uint16_t length)
 {
     int len = length;
     while (len > 0) {
@@ -234,7 +234,7 @@ int rt_hci_transport_uart_send(uint8_t *buffer, uint16_t length)
     return length;
 }
 
-int rt_hci_transport_uart_recv(uint8_t *buffer, uint16_t length)
+int os_uart_recv(uint8_t *buffer, uint16_t length)
 {
     return read(fd, buffer, length);
 }

@@ -1,4 +1,4 @@
-#include "hci_transport_uart.h"
+#include "os_port.h"
 #include <stdio.h>
 #include <string.h>
 #include <CUnit/Basic.h>
@@ -8,11 +8,11 @@
 #define CU_ASSERT_ARRAY_EQUAL   CU_ASSERT_NSTRING_EQUAL
 
 
-struct hci_transport_uart_config config = {
+struct os_uart_config config = {
     .device_name = "/dev/ttyACM0",
-    .parity      = UART_PARITY_NONE,
-    .stopbit     = UART_STOPBIT_1_BIT,
-    .databit     = UART_DATABIT_8_BIT,
+    .parity      = OS_UART_PARITY_NONE,
+    .stopbit     = OS_UART_STOPBIT_1_BIT,
+    .databit     = OS_UART_DATABIT_8_BIT,
     .baudrate    = 1000000,
     .flowcontrol = true,
 };
@@ -23,7 +23,7 @@ struct hci_transport_uart_config config = {
  */
 int init_suite(void)
 {
-    rt_hci_transport_uart_init(&config);
+    os_uart_init(&config);
     return 0;
 }
 
@@ -37,15 +37,15 @@ int clean_suite(void)
 }
 
 
-void test_rt_hci_transport_uart(void)
+void test_os_uart(void)
 {
     uint8_t send_buf[] = {0x01, 0x03, 0x0C, 0x00};  // HCI Reset.
-    int len = rt_hci_transport_uart_send(send_buf, ARRAY_SIZE(send_buf));
+    int len = os_uart_send(send_buf, ARRAY_SIZE(send_buf));
     CU_ASSERT_EQUAL(len, ARRAY_SIZE(send_buf));
 
     uint8_t recv_buf[7];
     uint8_t recv_buf_expect[] = {0x04, 0x0E, 0x04, 0x01, 0x03, 0x0C, 0x00}; // Command complete event.
-    len = rt_hci_transport_uart_recv(recv_buf, ARRAY_SIZE(recv_buf));
+    len = os_uart_recv(recv_buf, ARRAY_SIZE(recv_buf));
     CU_ASSERT_EQUAL(len, ARRAY_SIZE(recv_buf_expect));
     CU_ASSERT_ARRAY_EQUAL(recv_buf, recv_buf_expect, ARRAY_SIZE(recv_buf_expect));
 }
@@ -64,7 +64,7 @@ int main()
       return CU_get_error();
 
     CU_TestInfo test_array[] = {
-        {"test hci transport uart", test_rt_hci_transport_uart},
+        {"test hci transport uart", test_os_uart},
         // {"test slip receive frame", test_slip_receive_frame},
         CU_TEST_INFO_NULL,
     };

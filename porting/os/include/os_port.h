@@ -7,6 +7,9 @@
 extern "C" {
 #endif
 
+/*
+ * Task
+ */
 
 /**
  * @brief This function create a task, and run it.
@@ -121,6 +124,73 @@ extern int os_mutex_take(struct os_mutex *mutex, os_time_t timeout);
 */
 extern int os_mutex_release(struct os_mutex *mutex);
 
+
+/**
+ * Uart
+*/
+enum {
+    OS_UART_PARITY_EVEN,
+    OS_UART_PARITY_ODD,
+    OS_UART_PARITY_NONE,
+};
+
+enum {
+    OS_UART_STOPBIT_1_BIT,
+    OS_UART_STOPBIT_2_BIT,
+};
+
+enum {
+    OS_UART_DATABIT_5_BIT,
+    OS_UART_DATABIT_6_BIT,
+    OS_UART_DATABIT_7_BIT,
+    OS_UART_DATABIT_8_BIT,
+};
+
+struct os_uart_config {
+    const char *device_name;
+    int parity;
+    int stopbit;
+    int databit;
+    uint32_t baudrate;
+    bool flowcontrol;
+};
+
+/**
+ * @brief Initial a uart with `os_uart_config`.
+ * 
+ * @param config	The configure item for uart, including uart name, baudrate and so on.
+ * 
+ * @return int
+ * @retval	0	Success
+ * @retval	-1	Fail
+*/
+extern int os_uart_init(struct os_uart_config *config);
+
+/**
+ * @brief Uart send data.
+ * 
+ * @param buffer	Data buffer.
+ * @param length	Data length.
+ * 
+ * @return int
+ * @retval	>0	Send data length.
+ * @retval	-1	Send fail.
+*/
+extern int os_uart_send(uint8_t *buffer, uint16_t length);
+
+/**
+ * @brief Uart receive data.
+ * 
+ * @param buffer	Receive data buffer.
+ * @param length	Buffer size.
+ * 
+ * @note This function will block until receive data.
+ * 
+ * @return int
+ * @retval	>0	Receive data length.
+ * @retval	-1	Receive fail.
+*/
+extern int os_uart_recv(uint8_t *buffer, uint16_t length);
 
 #ifdef __cplusplus
 }

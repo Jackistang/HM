@@ -5,12 +5,13 @@ project(hci_middleware)
 set(CMAKE_BUILD_TYPE "Debug")
 
 set(SOURCES
-    src/hci_transport_uart_linux.c
+    # src/hci_transport_uart_linux.c
 
 # porting os
     porting/os/linux/src/os_mutex.c
     porting/os/linux/src/os_sem.c
     porting/os/linux/src/os_task.c
+    porting/os/linux/src/os_uart.c
 
     tests/test.c)
 
