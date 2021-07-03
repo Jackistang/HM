@@ -43,6 +43,15 @@ extern int os_task_create(struct os_task *t, const char *name, os_task_func_t fu
 */
 extern int os_task_remove(struct os_task *t);
 
+/**
+ * @brief Sleep ms.
+ * 
+ * @param   ms  The sleep time with ms.
+ * 
+ * @return void
+*/
+extern void os_sleep(int ms);
+
 /*
  * Semaphores
  */

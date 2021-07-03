@@ -18,7 +18,7 @@ enum {
 static int set_baudrate(struct termios * toptions, void *args)
 {
     uint32_t baudrate = *(uint32_t *)args;
-    printf("h4_set_baudrate %u\n", baudrate);
+    // printf("h4_set_baudrate %u\n", baudrate);
 
     speed_t brate = baudrate; // let you override switch below if needed
     switch(baudrate) {

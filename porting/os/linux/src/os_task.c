@@ -1,6 +1,8 @@
 #include "os_type.h"
 #include <errno.h>
 #include <assert.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 #define UNUSED(n)   ((void*)(sizeof(n)))
 
@@ -26,4 +28,10 @@ int os_task_create(struct os_task *t, const char *name, os_task_func_t func,
 int os_task_remove(struct os_task *t)
 {
     return pthread_cancel(t->handle);
+}
+
+
+void os_sleep(int ms)
+{
+    sleep(ms);
 }

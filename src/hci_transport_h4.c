@@ -6,13 +6,11 @@
 
 static void (*g_package_cb)(int type, uint8_t *buf, size_t size);
 
-static struct rt_ringbuffer g_ringbuffer;
-static uint8_t g_ringbuffer_pool[512];
-
-int rt_hci_transport_h4_init(struct rt_hci_transport_h4_config *config)
+void rt_hci_transport_h4_init(struct rt_hci_transport_h4_config *config)
 {
     g_package_cb = config->package_callback;
-    rt_ringbuffer_init(&g_ringbuffer, g_ringbuffer_pool, ARRAY_SIZE(g_ringbuffer_pool));
+
+    return 0;
 }
 
 int rt_hci_transport_h4_send(int type, uint8_t *buf, size_t size)
@@ -41,7 +39,7 @@ static struct hci_pkg_format g_pkg_fmt[] = {
 
 static uint8_t recv_buffer[512];
 static uint16_t recv_index;
-int _hci_transport_h4_recv(uint8_t *buf, uint16_t buf_len)
+int _hci_transport_h4_pack(uint8_t *buf, uint16_t buf_len)
 {
     assert(buf);
     assert(buf_len > 0);
@@ -69,6 +67,7 @@ int _hci_transport_h4_recv(uint8_t *buf, uint16_t buf_len)
         if (recv_hci_size < expect_hci_size)
             return 0;
         
+        //TODO 目前无法处理一个包内含有两条消息的情况。
         g_package_cb(recv_buffer[0], recv_buffer+1, expect_hci_size);
 
         /* Reset receive buffer, copy data from end pointer to start pointer. */

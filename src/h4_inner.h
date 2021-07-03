@@ -7,9 +7,9 @@
 extern "C" {
 #endif
 
-extern int _hci_transport_h4_recv(uint8_t *buf, uint16_t size);
+extern int _hci_transport_h4_pack(uint8_t *buf, uint16_t size);
 
-
+extern int _receiver_init(void);
 
 #ifdef __cplusplus
 }

@@ -13,7 +13,7 @@ extern "C" {
 #define OS_WAIT_FOREVER (-1)
 
 typedef uint32_t os_time_t;
-typedef int os_stack_t;
+typedef uint8_t os_stack_t;
 
 typedef void *(*os_task_func_t)(void *);
 

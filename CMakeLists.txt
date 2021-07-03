@@ -7,6 +7,7 @@ set(CMAKE_BUILD_TYPE "Debug")
 set(SOURCES
     # src/hci_transport_uart_linux.c
     src/hci_transport_h4.c
+    src/receiver.c
 
 # porting os
     porting/os/linux/src/os_mutex.c

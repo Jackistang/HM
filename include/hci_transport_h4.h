@@ -17,10 +17,36 @@ enum {
 };
 
 struct rt_hci_transport_h4_config {
+    /**
+     * @brief Receive package callback.
+     * 
+     * @param type      Controller to Host package type, ACL, SYNC, EVENT, or ISO.
+     * @param buf       Package buffer.
+     * @param length    Package length
+    */
     void (*package_callback)(int type, uint8_t *buf, size_t length);
 };
 
-extern int rt_hci_transport_h4_init(struct rt_hci_transport_h4_config *config);
+/**
+ * @brief Init hci transport h4 .
+ * 
+ * @param config    Init configure.
+ * 
+ * @return void
+*/
+extern void rt_hci_transport_h4_init(struct rt_hci_transport_h4_config *config);
+
+/**
+ * @brief HCI transport h4 send package.
+ * 
+ * @param type      HCI package type.
+ * @param buf       HCI package buffer.
+ * @param length    HCI package length.
+ * 
+ * @return int
+ * @retval  >=0     Sended data length.
+ * @retval  -1      Send fail.
+*/
 extern int rt_hci_transport_h4_send(int type, uint8_t *buf, size_t length);
 
 

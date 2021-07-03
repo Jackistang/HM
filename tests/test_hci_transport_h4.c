@@ -1,4 +1,5 @@
 #include "hci_transport_h4.h"
+#include "../src/h4_inner.h"
 #include "os_port.h"
 #include <stdio.h>
 #include <string.h>
@@ -11,11 +12,25 @@
 
 static struct os_sem sync_sem;
 
+static struct os_uart_config uart_config = {
+    .device_name = "/dev/ttyACM0",
+    .parity      = OS_UART_PARITY_NONE,
+    .stopbit     = OS_UART_STOPBIT_1_BIT,
+    .databit     = OS_UART_DATABIT_8_BIT,
+    .baudrate    = 1000000,
+    .flowcontrol = true,
+};
+
 static int init_suite(void)
 {
     if (os_sem_init(&sync_sem, 0))
         return -1;
     
+    os_uart_init(&uart_config);
+
+    if (_receiver_init())
+        return -1;
+
     return 0;
 }
 
@@ -48,14 +63,25 @@ static void test_hci_transport_h4(void)
 
     int n = rt_hci_transport_h4_send(HCI_TRANSPORT_H4_COMMAND, command1, ARRAY_SIZE(command1));
     CU_ASSERT_EQUAL(n, ARRAY_SIZE(command1));
+    /* Real hardware test. */
+    int err = os_sem_take(&sync_sem, 1000);
+    CU_ASSERT_EQUAL(err, 0);
 
     /* For mock test */
     uint8_t recv_buf[] = {0x04, 0x0E, 0x04, 0x01, 0x03, 0x0C, 0x00};
-    int err = _hci_transport_h4_recv(recv_buf, ARRAY_SIZE(recv_buf));
+    err = _hci_transport_h4_pack(recv_buf, ARRAY_SIZE(recv_buf));
     CU_ASSERT_EQUAL(err, 0);
-
     err = os_sem_take(&sync_sem, 1000);
     CU_ASSERT_EQUAL(err, 0);
+
+    //测试 _hci_transport_h4_recv 接口分两段接收一个包。
+    for (int i = 1; i < ARRAY_SIZE(recv_buf); i+=3) {
+        err = _hci_transport_h4_pack(recv_buf, i);
+        CU_ASSERT_EQUAL(err, 0);
+        err = _hci_transport_h4_pack(recv_buf+i, ARRAY_SIZE(recv_buf)-i);
+        err = os_sem_take(&sync_sem, 1000);
+        CU_ASSERT_EQUAL(err, 0);
+    }
 }
 
 int test_hci_transport_h4_init(void)
