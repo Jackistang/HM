@@ -225,7 +225,7 @@ int os_uart_send(uint8_t *buffer, uint16_t length)
 {
     int len = length;
     while (len > 0) {
-        uint16_t size = write(fd, buffer, len);
+        int size = write(fd, buffer, len);
         if (size <= 0)
             return -1;
         len -= size; 

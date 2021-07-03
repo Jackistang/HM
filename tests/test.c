@@ -8,7 +8,7 @@
 #define CU_ASSERT_ARRAY_EQUAL   CU_ASSERT_NSTRING_EQUAL
 
 
-struct os_uart_config config = {
+static struct os_uart_config config = {
     .device_name = "/dev/ttyACM0",
     .parity      = OS_UART_PARITY_NONE,
     .stopbit     = OS_UART_STOPBIT_1_BIT,
@@ -21,7 +21,7 @@ struct os_uart_config config = {
  * Opens the temporary file used by the tests.
  * Returns zero on success, non-zero otherwise.
  */
-int init_suite(void)
+static int init_suite(void)
 {
     os_uart_init(&config);
     return 0;
@@ -31,13 +31,13 @@ int init_suite(void)
  * Closes the temporary file used by the tests.
  * Returns zero on success, non-zero otherwise.
  */
-int clean_suite(void)
+static int clean_suite(void)
 {
     return 0;
 }
 
 
-void test_os_uart(void)
+static void test_os_uart(void)
 {
     uint8_t send_buf[] = {0x01, 0x03, 0x0C, 0x00};  // HCI Reset.
     int len = os_uart_send(send_buf, ARRAY_SIZE(send_buf));
@@ -51,6 +51,7 @@ void test_os_uart(void)
 }
 
 
+extern int test_hci_transport_h4_init(void);
 /* The main() function for setting up and running the tests.
  * Returns a CUE_SUCCESS on successful running, another
  * CUnit error code on failure.
@@ -78,6 +79,8 @@ int main()
         CU_cleanup_registry();
         return CU_get_error();
     }
+
+    test_hci_transport_h4_init();
 
    /* Run all tests using the CUnit Basic interface */
    CU_basic_set_mode(CU_BRM_VERBOSE);

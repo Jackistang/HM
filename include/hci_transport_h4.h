@@ -16,8 +16,12 @@ enum {
     HCI_TRANSPORT_H4_ISO,
 };
 
-extern int rt_hci_transport_h4_send(int type, uint8_t *buf, size_t size);
-extern void rt_hci_transport_h4_register_callback(void (*package_callback)(uint8_t type, uint8_t *buf, size_t size));
+struct rt_hci_transport_h4_config {
+    void (*package_callback)(int type, uint8_t *buf, size_t length);
+};
+
+extern int rt_hci_transport_h4_init(struct rt_hci_transport_h4_config *config);
+extern int rt_hci_transport_h4_send(int type, uint8_t *buf, size_t length);
 
 
 #ifdef __cplusplus
