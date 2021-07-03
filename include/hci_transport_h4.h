@@ -18,7 +18,6 @@ enum {
 
 extern int rt_hci_transport_h4_send(int type, uint8_t *buf, size_t size);
 extern void rt_hci_transport_h4_register_callback(void (*package_callback)(uint8_t type, uint8_t *buf, size_t size));
-extern void rt_hci_transport_h4_loop(void);
 
 
 #ifdef __cplusplus

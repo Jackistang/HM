@@ -20,7 +20,7 @@ add_executable(hci_middleware
 
 target_include_directories(hci_middleware
     PRIVATE
-    ${PROJECT_SOURCE_DIR}/src
+    ${PROJECT_SOURCE_DIR}/include
 
 # porting os
     ${PROJECT_SOURCE_DIR}/porting/os/include
