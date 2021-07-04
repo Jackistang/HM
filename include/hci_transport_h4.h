@@ -1,5 +1,5 @@
-#ifndef HCI_TRANSPORT_H4_H
-#define HCI_TRANSPORT_H4_H
+#ifndef HCI_MIDDLEWARE_TRANSPORT_H4_H
+#define HCI_MIDDLEWARE_TRANSPORT_H4_H
 
 #include <stdint.h>
 #include <stddef.h>
@@ -49,9 +49,15 @@ extern void rt_hci_transport_h4_init(struct rt_hci_transport_h4_config *config);
 */
 extern int rt_hci_transport_h4_send(int type, uint8_t *buf, size_t length);
 
+/**
+ * @brief Register a packet callback handler, is similar with `rt_hci_transport_h4_init()`
+ * 
+ * @param handler   Callback function pointer.
+*/
+extern void rt_hci_transport_h4_register_packet_handler(void (*handler)(int packet_type, uint8_t *packet, uint16_t size));
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* HCI_TRANSPORT_H4_H */
+#endif /* HCI_MIDDLEWARE_TRANSPORT_H4_H */

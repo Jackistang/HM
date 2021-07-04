@@ -221,6 +221,11 @@ int os_uart_init(struct os_uart_config *config)
     return 0;
 }
 
+int os_uart_deinit(void)
+{
+    return close(fd);
+}
+
 int os_uart_send(uint8_t *buffer, uint16_t length)
 {
     int len = length;
@@ -237,4 +242,9 @@ int os_uart_send(uint8_t *buffer, uint16_t length)
 int os_uart_recv(uint8_t *buffer, uint16_t length)
 {
     return read(fd, buffer, length);
+}
+
+int os_uart_set_baudrate(uint32_t baudrate)
+{
+    return hci_transport_uart_set_params(UART_TYPE_BAUDRATE, &baudrate);
 }

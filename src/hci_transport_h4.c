@@ -85,3 +85,7 @@ int _hci_transport_h4_pack(uint8_t *buf, uint16_t buf_len)
     return 0;
 }
 
+void rt_hci_transport_h4_register_packet_handler(void (*handler)(int packet_type, uint8_t *packet, uint16_t size))
+{
+    g_package_cb = handler;
+}

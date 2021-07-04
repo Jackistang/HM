@@ -140,18 +140,18 @@ extern int os_mutex_release(struct os_mutex *mutex);
  * Uart
 */
 enum {
+    OS_UART_PARITY_NONE = 0,
     OS_UART_PARITY_EVEN,
     OS_UART_PARITY_ODD,
-    OS_UART_PARITY_NONE,
 };
 
 enum {
-    OS_UART_STOPBIT_1_BIT,
+    OS_UART_STOPBIT_1_BIT = 1,
     OS_UART_STOPBIT_2_BIT,
 };
 
 enum {
-    OS_UART_DATABIT_5_BIT,
+    OS_UART_DATABIT_5_BIT = 5,
     OS_UART_DATABIT_6_BIT,
     OS_UART_DATABIT_7_BIT,
     OS_UART_DATABIT_8_BIT,
@@ -178,6 +178,15 @@ struct os_uart_config {
 extern int os_uart_init(struct os_uart_config *config);
 
 /**
+ * @brief Close uart.
+ * 
+ * @return int
+ * @retval  0   Success
+ * @retval  -1  Fail
+*/
+extern int os_uart_deinit(void);
+
+/**
  * @brief Uart send data.
  * 
  * @param buffer	Data buffer.
@@ -202,6 +211,17 @@ extern int os_uart_send(uint8_t *buffer, uint16_t length);
  * @retval	-1	Receive fail.
 */
 extern int os_uart_recv(uint8_t *buffer, uint16_t length);
+
+/**
+ * @brief Uart set baudrate.
+ * 
+ * @param baudrate  Baudrate to be set.
+ * 
+ * @return int
+ * @retval  0   Success
+ * @retval  -1  Fail
+*/
+extern int os_uart_set_baudrate(uint32_t baudrate);
 
 #ifdef __cplusplus
 }
