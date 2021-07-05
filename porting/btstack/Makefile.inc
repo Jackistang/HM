@@ -1,7 +1,7 @@
 
-VPATH += HCI_Middleware/src
-VPATH += HCI_Middleware/porting/btstack
-VPATH += HCI_Middleware/porting/os/linux
+VPATH += HCI-Middleware/src
+VPATH += HCI-Middleware/porting/btstack
+VPATH += HCI-Middleware/porting/os/linux/src
 
 CORE += \
     hci_transport_h4.c   \
@@ -13,8 +13,10 @@ CORE += \
     os_uart.c   \
 
 CFLAGS  +=  \
-    -IHCI_Middleware/include    \
-    -IHCI_Middleware/porting/os/include \
-    -IHCI_Middleware/porting/os/linux/include   \
-    -lpthread
+    -IHCI-Middleware/include    \
+    -IHCI-Middleware/porting/os/include \
+    -IHCI-Middleware/porting/os/linux/include   \
+    -Wno-incompatible-pointer-types \
+    -Wimplicit-function-declaration \
 
+LDFLAGS += -lpthread

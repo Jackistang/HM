@@ -1,5 +1,4 @@
 #include "hci_transport_h4.h"
-#include "ringbuffer.h"
 #include "os_port.h"
 #include <string.h>
 #include <assert.h>
@@ -10,7 +9,7 @@ void rt_hci_transport_h4_init(struct rt_hci_transport_h4_config *config)
 {
     g_package_cb = config->package_callback;
 
-    return 0;
+    return ;
 }
 
 int rt_hci_transport_h4_send(int type, uint8_t *buf, size_t size)

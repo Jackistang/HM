@@ -3,8 +3,9 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <unistd.h>
 
-#define UNUSED(n)   ((void*)(sizeof(n)))
+#define UNUSED(n)   ((void)(sizeof(n)))
 
 // A simple implement.
 int os_task_create(struct os_task *t, const char *name, os_task_func_t func,

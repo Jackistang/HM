@@ -2,6 +2,7 @@
 #include "hci_transport_h4.h"
 #include "hci_transport.h"
 #include "btstack_debug.h"
+#include "btstack_uart.h"
 
 // UART Config
 static btstack_uart_config_t uart_config;
@@ -44,11 +45,15 @@ static int hci_transport_h4_open(void)
         log_error("Open uart %s error!", config.device_name);
         return -1;
     }
+
+    return 0;
 }
 
 static int hci_transport_h4_close(void)
 {
     os_uart_deinit();
+
+    return 0;
 }
 
 static void hci_transport_h4_register_packet_handler(void (*handler)(uint8_t packet_type, uint8_t *packet, uint16_t size))

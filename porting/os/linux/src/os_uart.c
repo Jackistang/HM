@@ -138,6 +138,8 @@ static int set_databit(struct termios * toptions, void *args)
         toptions->c_cflag |= CS8;
         break;
     }
+
+    return 0;
 }
 
 static int set_flowcontrol(struct termios * toptions, void *args)
