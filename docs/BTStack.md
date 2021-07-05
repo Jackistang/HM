@@ -49,3 +49,34 @@ main.c 文件里更改头文件接口。
 Makefile 文件里去除掉 hci_transport_h4.c 文件，并 include 文件 ./HCI-Middleware/porting/btstack/Makefile.inc 即可。
 
 ![](images/image-20210705093532814.png)
+
+
+
+`hci_transport_h4_block_read()`
+
+
+
+每次 Host 到 Controller 的数据发送完成后，都需要手动返回一个 `6E 00` 的事件，该事件代表数据发送完成（`HCI_EVENT_TRANSPORT_PACKET_SENT`），参考下述代码，最核心的是释放了 HCI 发送数据包的缓冲区。
+
+```C
+static void event_handler(uint8_t *packet, uint16_t size)
+{
+    ......
+    switch (hci_event_packet_get_type(packet)) {
+            ......
+                
+            case HCI_EVENT_TRANSPORT_PACKET_SENT:
+                // release packet buffer only for asynchronous transport and if there are not further fragements
+                if (hci_transport_synchronous()) {
+                    log_error("Synchronous HCI Transport shouldn't send HCI_EVENT_TRANSPORT_PACKET_SENT");
+                    return; // instead of break: to avoid re-entering hci_run()
+                }
+                hci_stack->acl_fragmentation_tx_active = 0;
+                if (hci_stack->acl_fragmentation_total_size) break;
+                hci_release_packet_buffer();
+            
+            ......
+    }
+}
+```
+
