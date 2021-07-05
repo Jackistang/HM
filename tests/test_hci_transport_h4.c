@@ -12,13 +12,15 @@
 
 static struct os_sem sync_sem;
 
-static struct os_uart_config uart_config = {
-    .device_name = "/dev/ttyACM0",
-    .parity      = OS_UART_PARITY_NONE,
-    .stopbit     = OS_UART_STOPBIT_1_BIT,
-    .databit     = OS_UART_DATABIT_8_BIT,
-    .baudrate    = 1000000,
-    .flowcontrol = true,
+static struct rt_hci_transport_h4_config config = {
+    .uart_config = {
+        .device_name = "/dev/ttyACM0",
+        .parity      = OS_UART_PARITY_NONE,
+        .stopbit     = OS_UART_STOPBIT_1_BIT,
+        .databit     = OS_UART_DATABIT_8_BIT,
+        .baudrate    = 1000000,
+        .flowcontrol = true,
+    },
 };
 
 static int init_suite(void)
@@ -26,22 +28,23 @@ static int init_suite(void)
     if (os_sem_init(&sync_sem, 0))
         return -1;
     
-    os_uart_init(&uart_config);
 
-    if (_receiver_init())
-        return -1;
+    rt_hci_transport_h4_init(&config);
+    rt_hci_transport_h4_open();
 
     return 0;
 }
 
 static int clean_suite(void)
 {
+    rt_hci_transport_h4_close();
+
     return 0;
 }
 
 static uint8_t command1[] = { 0x03, 0x0C, 0x00 };
 static uint8_t event1[] = { 0x0E, 0x04, 0x01, 0x03, 0x0C, 0x00 };
-static void h4_package_callback(int type, uint8_t *buf, size_t size)
+static void h4_package_callback(int type, uint8_t *buf, uint16_t size)
 {
     CU_ASSERT_EQUAL(type, HCI_TRANSPORT_H4_EVENT);
     CU_ASSERT_EQUAL(size, ARRAY_SIZE(event1));
@@ -50,16 +53,13 @@ static void h4_package_callback(int type, uint8_t *buf, size_t size)
     os_sem_release(&sync_sem);
 }
 
-static struct rt_hci_transport_h4_config config = {
-    .package_callback = h4_package_callback,
-};
 
 /* For mock test */
 #include "../src/h4_inner.h"
 
 static void test_hci_transport_h4(void)
 {
-    rt_hci_transport_h4_init(&config);
+    rt_hci_transport_h4_register_packet_handler(h4_package_callback);
 
     int n = rt_hci_transport_h4_send(HCI_TRANSPORT_H4_COMMAND, command1, ARRAY_SIZE(command1));
     CU_ASSERT_EQUAL(n, ARRAY_SIZE(command1));

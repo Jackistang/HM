@@ -3,8 +3,10 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <assert.h>
 
 static int fd;
+static struct os_uart_config *uart_config;
 
 enum {
     UART_TYPE_BAUDRATE,
@@ -200,36 +202,48 @@ static int hci_transport_uart_set_params(int type, void *params)
     return 0;
 }
 
-int os_uart_init(struct os_uart_config *config)
+void os_uart_init(struct os_uart_config *config)
 {
-    fd = open(config->device_name, O_RDWR | O_NOCTTY);
+    assert(config);
+
+    uart_config = config;
+}
+
+int os_uart_open(void)
+{
+    assert(uart_config);
+
+    fd = open(uart_config->device_name, O_RDWR | O_NOCTTY);
     if (fd == -1) {
         perror("Open hci transport uart error");
         return -1;
     }
 
     int err;
-    if ((err = hci_transport_uart_set_params(UART_TYPE_BAUDRATE, &config->baudrate)))
+    if ((err = hci_transport_uart_set_params(UART_TYPE_BAUDRATE, &uart_config->baudrate)))
         return -1;
-    if ((err = hci_transport_uart_set_params(UART_TYPE_DATABIT, &config->databit)))
+    if ((err = hci_transport_uart_set_params(UART_TYPE_DATABIT, &uart_config->databit)))
         return -1;
-    if ((err = hci_transport_uart_set_params(UART_TYPE_STOPBIT, &config->stopbit)))
+    if ((err = hci_transport_uart_set_params(UART_TYPE_STOPBIT, &uart_config->stopbit)))
         return -1;
-    if ((err = hci_transport_uart_set_params(UART_TYPE_PARITY, &config->parity)))
+    if ((err = hci_transport_uart_set_params(UART_TYPE_PARITY, &uart_config->parity)))
         return -1;
-    if ((err = hci_transport_uart_set_params(UART_TYPE_FLOWCONTROL, &config->flowcontrol)))
+    if ((err = hci_transport_uart_set_params(UART_TYPE_FLOWCONTROL, &uart_config->flowcontrol)))
         return -1;
     
     return 0;
 }
 
-int os_uart_deinit(void)
+int os_uart_close(void)
 {
     return close(fd);
 }
 
 int os_uart_send(uint8_t *buffer, uint16_t length)
 {
+    assert(buffer);
+    assert(length != 0);
+
     int len = length;
     while (len > 0) {
         int size = write(fd, buffer, len);
@@ -243,6 +257,9 @@ int os_uart_send(uint8_t *buffer, uint16_t length)
 
 int os_uart_recv(uint8_t *buffer, uint16_t length)
 {
+    assert(buffer);
+    assert(length != 0);
+
     return read(fd, buffer, length);
 }
 

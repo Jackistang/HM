@@ -24,6 +24,7 @@ static struct os_uart_config config = {
 static int init_suite(void)
 {
     os_uart_init(&config);
+    os_uart_open();
     return 0;
 }
 
@@ -33,6 +34,7 @@ static int init_suite(void)
  */
 static int clean_suite(void)
 {
+    os_uart_close();
     return 0;
 }
 

@@ -171,11 +171,18 @@ struct os_uart_config {
  * 
  * @param config	The configure item for uart, including uart name, baudrate and so on.
  * 
- * @return int
- * @retval	0	Success
- * @retval	-1	Fail
+ * @return void
 */
-extern int os_uart_init(struct os_uart_config *config);
+extern void os_uart_init(struct os_uart_config *config);
+
+/**
+ * @brief Open uart.
+ * 
+ * @return int
+ * @retval  0   Success
+ * @retval  -1  Fail
+*/
+extern int os_uart_open(void);
 
 /**
  * @brief Close uart.
@@ -184,10 +191,10 @@ extern int os_uart_init(struct os_uart_config *config);
  * @retval  0   Success
  * @retval  -1  Fail
 */
-extern int os_uart_deinit(void);
+extern int os_uart_close(void);
 
 /**
- * @brief Uart send data.
+ * @brief Uart send data, synchronous interface.
  * 
  * @param buffer	Data buffer.
  * @param length	Data length.
@@ -199,7 +206,7 @@ extern int os_uart_deinit(void);
 extern int os_uart_send(uint8_t *buffer, uint16_t length);
 
 /**
- * @brief Uart receive data.
+ * @brief Uart receive data, synchronous interface.
  * 
  * @param buffer	Receive data buffer.
  * @param length	Buffer size.

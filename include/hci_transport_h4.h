@@ -1,6 +1,7 @@
 #ifndef HCI_MIDDLEWARE_TRANSPORT_H4_H
 #define HCI_MIDDLEWARE_TRANSPORT_H4_H
 
+#include "os_port.h"
 #include <stdint.h>
 #include <stddef.h>
 
@@ -17,14 +18,7 @@ enum {
 };
 
 struct rt_hci_transport_h4_config {
-    /**
-     * @brief Receive package callback.
-     * 
-     * @param type      Controller to Host package type, ACL, SYNC, EVENT, or ISO.
-     * @param buf       Package buffer.
-     * @param length    Package length
-    */
-    void (*package_callback)(int type, uint8_t *buf, size_t length);
+    struct os_uart_config uart_config;
 };
 
 /**
@@ -36,8 +30,22 @@ struct rt_hci_transport_h4_config {
 */
 extern void rt_hci_transport_h4_init(struct rt_hci_transport_h4_config *config);
 
+/**
+ * @brief Open hci h4 transport, including open os_uart.
+ * 
+ * @return int
+ * @retval  0   Success
+ * @retval  -1  Fail
+*/
 extern int rt_hci_transport_h4_open(void);
 
+/**
+ * @brief Close hci h4 transport, including close os_uart.
+ * 
+ * @return int
+ * @retval  0   Success
+ * @retval  -1  Fail
+*/
 extern int rt_hci_transport_h4_close(void);
 
 /**

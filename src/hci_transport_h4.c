@@ -1,28 +1,35 @@
 #include "hci_transport_h4.h"
 #include "h4_inner.h"
-#include "os_port.h"
 #include <string.h>
 #include <assert.h>
 
-static void (*g_package_cb)(int type, uint8_t *buf, size_t size);
+static void (*g_package_cb)(int type, uint8_t *buf, uint16_t size);
 
 void rt_hci_transport_h4_init(struct rt_hci_transport_h4_config *config)
 {
-    if (config) {
-        g_package_cb = config->package_callback;
-    }
+    assert(config);
+
+    os_uart_init(&config->uart_config);
 
     return ;
 }
 
 int rt_hci_transport_h4_open(void)
 {
+    int err;
+    if ((err = os_uart_open()))
+        return err;
+    
     _receiver_init();
     return 0;
 }
 
 int rt_hci_transport_h4_close(void)
 {
+    int err;
+    if ((err = os_uart_close()))
+        return err;
+    
     return 0;
 }
 
