@@ -57,6 +57,7 @@ static struct hci_pkg_format g_pkg_fmt[] = {
     {2, 2}, /* ISO: handle, PB TS flag, RFU is 2 bytes, Data total length is 2 bytes (MSB 14bits) */
 };
 
+// TODO 接收数据待优化，利用状态机实现。
 static uint8_t recv_buffer[512];
 static uint16_t recv_index;
 int _hci_transport_h4_pack(uint8_t *buf, uint16_t buf_len)
@@ -77,10 +78,9 @@ int _hci_transport_h4_pack(uint8_t *buf, uint16_t buf_len)
     if (recv_hci_size >= (g_pkg_fmt[idx].header + g_pkg_fmt[idx].length)) {
         uint8_t *ptr = recv_buffer + 1 + g_pkg_fmt[idx].header;
         uint16_t data_length = *ptr;
-        //TODO 处理大小端问题，
-        // while (g_pkg_fmt[idx].length > 1) {
 
-        // }
+        if (g_pkg_fmt[idx].length > 1)
+            data_length = data_length | ((uint16_t)*(ptr+1) << 8);
 
         size_t expect_hci_size= g_pkg_fmt[idx].header + g_pkg_fmt[idx].length + data_length;
         /* Not one complete message stored in ringbuffer. */

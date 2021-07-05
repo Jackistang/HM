@@ -14,6 +14,9 @@ static void _receiver_task(void)
     int err;
     while (1) {
         size = os_uart_recv(buf, ARRAY_SIZE(buf));
+        if (size <= 0)
+            continue ;
+        
         if ((err = _hci_transport_h4_pack(buf, size))) {
             printf("Pack h4 package fail: err(%d)\n", err);
         }

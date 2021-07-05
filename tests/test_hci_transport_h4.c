@@ -84,10 +84,33 @@ static void test_hci_transport_h4(void)
     }
 }
 
+static uint8_t acl_data1[] = {0x02, 0x00, 0x01, 0x02, 0x00, 0x01, 0x01};
+static void h4_acl_callback(int type, uint8_t *buf, uint16_t size)
+{
+    CU_ASSERT_EQUAL(type, HCI_TRANSPORT_H4_ACL);
+    CU_ASSERT_EQUAL(size, ARRAY_SIZE(acl_data1)-1);
+    CU_ASSERT_ARRAY_EQUAL(buf, acl_data1+1, size);
+
+    os_sem_release(&sync_sem);
+}
+
+static void test_hci_transport_h4_recv_acl(void)
+{
+    rt_hci_transport_h4_register_packet_handler(h4_acl_callback);
+
+    int err;
+    err = _hci_transport_h4_pack(acl_data1, ARRAY_SIZE(acl_data1));
+    CU_ASSERT_EQUAL(err, 0);
+    err = os_sem_take(&sync_sem, 1000);
+    CU_ASSERT_EQUAL(err, 0);
+}
+
+
 int test_hci_transport_h4_init(void)
 {
     CU_TestInfo test_array[] = {
         {"test hci transport h4", test_hci_transport_h4},
+        {"test hci transport h4 recv acl", test_hci_transport_h4_recv_acl},
         // {"test slip receive frame", test_slip_receive_frame},
         CU_TEST_INFO_NULL,
     };
