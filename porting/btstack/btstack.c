@@ -5,8 +5,7 @@
 #include "btstack_debug.h"
 #include "btstack_uart.h"
 
-// UART Config
-static btstack_uart_config_t uart_config;
+static struct rt_hci_transport_h4_config g_h4_config;
 static void (*packet_handler)(int type, uint8_t *buf, size_t size);
 
 static void hci_transport_h4_init(const void *transport_config)
@@ -23,41 +22,29 @@ static void hci_transport_h4_init(const void *transport_config)
 
     // extract UART config from transport config
     hci_transport_config_uart_t * hci_transport_config_uart = (hci_transport_config_uart_t*) transport_config;
-    uart_config.baudrate    = hci_transport_config_uart->baudrate_init;
-    uart_config.flowcontrol = hci_transport_config_uart->flowcontrol;
-    uart_config.parity      = hci_transport_config_uart->parity;
-    uart_config.device_name = hci_transport_config_uart->device_name;
 
-    rt_hci_transport_h4_init(NULL);
+    g_h4_config.uart_config.baudrate    = hci_transport_config_uart->baudrate_init;
+    g_h4_config.uart_config.flowcontrol = hci_transport_config_uart->flowcontrol;
+    g_h4_config.uart_config.parity      = hci_transport_config_uart->parity;
+    g_h4_config.uart_config.device_name = hci_transport_config_uart->device_name;
+    g_h4_config.uart_config.databit     = OS_UART_DATABIT_8_BIT;
+    g_h4_config.uart_config.stopbit     = OS_UART_STOPBIT_1_BIT;
+    rt_hci_transport_h4_init(&g_h4_config);
 }
 
 static int hci_transport_h4_open(void)
 {
-    struct os_uart_config config = {
-        .device_name    =   uart_config.device_name,
-        .baudrate       =   uart_config.baudrate,
-        .flowcontrol    =   uart_config.flowcontrol,
-        .parity         =   uart_config.parity,
-
-        //  default
-        .databit        =   OS_UART_DATABIT_8_BIT,
-        .stopbit        =   OS_UART_STOPBIT_1_BIT,
-    };
-    
-    int err = os_uart_init(&config);
+    int err = rt_hci_transport_h4_open();
     if (err) {
-        log_error("Open uart %s error!", config.device_name);
+        log_error("Open hci transport h4 fail err(%d)", err);
         return err;
     }
 
-    err = rt_hci_transport_h4_open();
-
-    return err;
+    return 0;
 }
 
 static int hci_transport_h4_close(void)
 {
-    os_uart_deinit();
     rt_hci_transport_h4_close();
 
     return 0;
