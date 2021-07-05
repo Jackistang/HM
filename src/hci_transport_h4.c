@@ -1,4 +1,5 @@
 #include "hci_transport_h4.h"
+#include "h4_inner.h"
 #include "os_port.h"
 #include <string.h>
 #include <assert.h>
@@ -7,9 +8,22 @@ static void (*g_package_cb)(int type, uint8_t *buf, size_t size);
 
 void rt_hci_transport_h4_init(struct rt_hci_transport_h4_config *config)
 {
-    g_package_cb = config->package_callback;
+    if (config) {
+        g_package_cb = config->package_callback;
+    }
 
     return ;
+}
+
+int rt_hci_transport_h4_open(void)
+{
+    _receiver_init();
+    return 0;
+}
+
+int rt_hci_transport_h4_close(void)
+{
+    return 0;
 }
 
 int rt_hci_transport_h4_send(int type, uint8_t *buf, size_t size)

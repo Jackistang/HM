@@ -1,4 +1,5 @@
 #include "os_port.h"
+
 #include "hci_transport_h4.h"
 #include "hci_transport.h"
 #include "btstack_debug.h"
@@ -6,6 +7,7 @@
 
 // UART Config
 static btstack_uart_config_t uart_config;
+static void (*packet_handler)(int type, uint8_t *buf, size_t size);
 
 static void hci_transport_h4_init(const void *transport_config)
 {
@@ -25,6 +27,8 @@ static void hci_transport_h4_init(const void *transport_config)
     uart_config.flowcontrol = hci_transport_config_uart->flowcontrol;
     uart_config.parity      = hci_transport_config_uart->parity;
     uart_config.device_name = hci_transport_config_uart->device_name;
+
+    rt_hci_transport_h4_init(NULL);
 }
 
 static int hci_transport_h4_open(void)
@@ -43,21 +47,25 @@ static int hci_transport_h4_open(void)
     int err = os_uart_init(&config);
     if (err) {
         log_error("Open uart %s error!", config.device_name);
-        return -1;
+        return err;
     }
 
-    return 0;
+    err = rt_hci_transport_h4_open();
+
+    return err;
 }
 
 static int hci_transport_h4_close(void)
 {
     os_uart_deinit();
+    rt_hci_transport_h4_close();
 
     return 0;
 }
 
 static void hci_transport_h4_register_packet_handler(void (*handler)(uint8_t packet_type, uint8_t *packet, uint16_t size))
 {
+    packet_handler = handler;
     rt_hci_transport_h4_register_packet_handler(handler);
 }
 
@@ -68,8 +76,12 @@ static int hci_transport_h4_can_send_packet_now(uint8_t packet_type)
 }
 
 static int hci_transport_h4_send_packet(uint8_t packet_type, uint8_t *packet, int size)
-{
+{   
     rt_hci_transport_h4_send(packet_type, packet, size);
+
+    static const uint8_t packet_sent_event[] = { HCI_EVENT_TRANSPORT_PACKET_SENT, 0}; 
+    packet_handler(HCI_TRANSPORT_H4_EVENT, (uint8_t *) &packet_sent_event[0], sizeof(packet_sent_event));
+
     return 0;
 }
 

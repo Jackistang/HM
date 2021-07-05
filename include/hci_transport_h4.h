@@ -36,6 +36,10 @@ struct rt_hci_transport_h4_config {
 */
 extern void rt_hci_transport_h4_init(struct rt_hci_transport_h4_config *config);
 
+extern int rt_hci_transport_h4_open(void);
+
+extern int rt_hci_transport_h4_close(void);
+
 /**
  * @brief HCI transport h4 send package.
  * 
