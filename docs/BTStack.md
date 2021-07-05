@@ -19,3 +19,33 @@ case HCI_EVENT_TRANSPORT_PACKET_SENT:
     break;
 ```
 
+
+
+## BTStack 构建规则
+
+最开始运行的 makefile 在 BTStack 官方移植好的平台里，例如 port -> posix-h4-zephyr -> Makefile 。
+
+以下都基于 posix-h4-zephyr 环境。
+
+最开始创建了变量 `BTSTACK_ROOT` 用于指定 btstack 根目录，
+
+```makefile
+# Makefile for posix-h4 based examples
+BTSTACK_ROOT ?= ../..
+```
+
+
+
+```
+VPATH 
+```
+
+
+
+main.c 文件里更改头文件接口。
+
+![](images/image-20210705093425855.png)
+
+Makefile 文件里去除掉 hci_transport_h4.c 文件，并 include 文件 ./HCI-Middleware/porting/btstack/Makefile.inc 即可。
+
+![](images/image-20210705093532814.png)
