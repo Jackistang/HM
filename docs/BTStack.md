@@ -1,46 +1,8 @@
+# BTStack
 
+## BTStack 集成 HCI-Middleware
 
-BTStack 通过自定义 HCI 事件 `HCI_EVENT_TRANSPORT_PACKET_SENT` 通知 HCI 当前数据已发送完毕，可以再次发送。完整的事件字节流为：`0x04 0x6E 0x00`，参考代码：
-
-> hci_transport_h4.c -> hci_transport_h4_block_send() : 328 行
-
-在 hci.c 中可以看见该事件用于 BTStack 内部使用：
-
-```C
-case HCI_EVENT_TRANSPORT_PACKET_SENT:
-    // release packet buffer only for asynchronous transport and if there are not further fragements
-    if (hci_transport_synchronous()) {
-        log_error("Synchronous HCI Transport shouldn't send HCI_EVENT_TRANSPORT_PACKET_SENT");
-        return; // instead of break: to avoid re-entering hci_run()
-    }
-    hci_stack->acl_fragmentation_tx_active = 0;
-    if (hci_stack->acl_fragmentation_total_size) break;
-    hci_release_packet_buffer();
-    break;
-```
-
-
-
-## BTStack 构建规则
-
-最开始运行的 makefile 在 BTStack 官方移植好的平台里，例如 port -> posix-h4-zephyr -> Makefile 。
-
-以下都基于 posix-h4-zephyr 环境。
-
-最开始创建了变量 `BTSTACK_ROOT` 用于指定 btstack 根目录，
-
-```makefile
-# Makefile for posix-h4 based examples
-BTSTACK_ROOT ?= ../..
-```
-
-
-
-```
-VPATH 
-```
-
-
+以 posix-h4-zephyr 环境为例，将 HCI-Middleware 整个项目复制到 btstack -> port -> posix-h4-zephyr 目录下，然后修改下面两个文件，
 
 main.c 文件里更改头文件接口。
 
@@ -50,39 +12,9 @@ Makefile 文件里去除掉 hci_transport_h4.c 文件，并 include 文件 ./HCI
 
 ![](images/image-20210705093532814.png)
 
+然后在 posix-h4-zephyr 直接执行 `make` 即成功集成 HCI-Middleware 。
 
-
-`hci_transport_h4_block_read()`
-
-
-
-每次 Host 到 Controller 的数据发送完成后，都需要手动返回一个 `6E 00` 的事件，该事件代表数据发送完成（`HCI_EVENT_TRANSPORT_PACKET_SENT`），参考下述代码，最核心的是释放了 HCI 发送数据包的缓冲区。
-
-```C
-static void event_handler(uint8_t *packet, uint16_t size)
-{
-    ......
-    switch (hci_event_packet_get_type(packet)) {
-            ......
-                
-            case HCI_EVENT_TRANSPORT_PACKET_SENT:
-                // release packet buffer only for asynchronous transport and if there are not further fragements
-                if (hci_transport_synchronous()) {
-                    log_error("Synchronous HCI Transport shouldn't send HCI_EVENT_TRANSPORT_PACKET_SENT");
-                    return; // instead of break: to avoid re-entering hci_run()
-                }
-                hci_stack->acl_fragmentation_tx_active = 0;
-                if (hci_stack->acl_fragmentation_total_size) break;
-                hci_release_packet_buffer();
-            
-            ......
-    }
-}
-```
-
-
-
-btstack HCI 数据接收流程
+## btstack HCI 数据接收流程
 
 以 posix-h4-zephyr 移植环境为例，`btstack_uart_posix.c` 文件实现了 posix 环境下 btstack 定义的串口接口，`hci_transport_h4.c` 文件实现了 h4 的相关功能，下面先讨论 btstack 收发数据包的具体流程。
 
@@ -148,7 +80,7 @@ static void hci_uart_posix_process(btstack_data_source_t *ds, btstack_data_sourc
 
 关键就在于这两个注册的函数，在 `hci_transport_h4.c` 文件里注册的是这两个函数 `hci_transport_h4_block_sent()` 和  `hci_transport_h4_block_read()` 。
 
-**在 sent 函数里，通过 `packet_handler()` 函数给上层 HCI 传输了一个自定义事件 `6E 00`，代表 HCI 数据由 Host 成功发送给 Controller 。**
+**在 sent 函数里，通过 `packet_handler()` 函数给上层 HCI 传输了一个自定义事件 `6E 00`，代表 HCI 数据由 Host 成功发送给 Controller 。**该事件对于 btstack 十分重要，btstack 收到该事件后才会释放发送缓冲区。
 
 ```C
 static void hci_transport_h4_block_sent(void){
@@ -168,7 +100,11 @@ static void hci_transport_h4_block_sent(void){
 }
 ```
 
-在 read 函数里实现了一个收包的状态机，并且每次进入该函数，在最末尾都会调用 `hci_transport_h4_trigger_next_read()` 接口触发下一次的读操作，最终会激活串口模块里的读取事件，感兴趣地可以参考下述代码。
+在 read 函数里实现了一个收包的状态机，状态机图如下所示：
+
+![btstack_hci_transport状态图](images/btstack_hci_transport状态图.png)
+
+并且每次进入该函数，在最末尾都会调用 `hci_transport_h4_trigger_next_read()` 接口触发下一次的读操作，最终会激活串口模块里的读取事件，感兴趣地可以参考下述代码。
 
 ```C
 static void hci_transport_h4_block_read(void){
@@ -252,7 +188,48 @@ static void hci_transport_h4_block_read(void){
 }
 ```
 
+## btstack 芯片初始化
 
+btstack 的 chipset 层比较简单，主要是用于 Reset 之后初始化蓝牙卡片，需要对接的核心接口为 `chipset_next_command()` 函数。
 
-btstack 芯片初始化
+```C
+static btstack_chipset_result_t chipset_next_command(uint8_t * hci_cmd_buffer);
+```
+
+该函数的功能是将一条 HCI 命令存储到 `hci_cmd_buffer` 所指向的缓冲区，如果初始化芯片需要发送多条 HCI 命令，这时返回 `BTSTACK_CHIPSET_VALID_COMMAND` 值，于是该函数会被再次调用，直至返回 `BTSTACK_CHIPSET_DONE` 。
+
+以 Zephyr Controller 为例，其初始化命令为：
+
+```C
+static const uint8_t init_script[] = { 
+    0x09, 0xfc, 0x00,
+};
+```
+
+于是我们来看对接的 `chipset_next_command()` 函数：
+
+```C
+static uint32_t init_script_offset  = 0;
+
+static btstack_chipset_result_t chipset_next_command(uint8_t * hci_cmd_buffer){
+
+    while (true){
+
+        if (init_script_offset >= init_script_size) {
+            return BTSTACK_CHIPSET_DONE;
+        }
+
+        // copy command header
+        memcpy(&hci_cmd_buffer[0], (uint8_t *) &init_script[init_script_offset], 3); 
+        init_script_offset += 3;
+        int payload_len = hci_cmd_buffer[2];
+        // copy command payload
+        memcpy(&hci_cmd_buffer[3], (uint8_t *) &init_script[init_script_offset], payload_len);
+
+        return BTSTACK_CHIPSET_VALID_COMMAND;         
+    }
+}
+```
+
+它里面就是将 HCI 命令的 header 以及 payload 存入 `hci_cmd_buffer` 指向的缓冲区，然后返回 `BTSTACK_CHIPSET_VALID_COMMAND` 继续下一次发送，当发送完成后返回 `BTSTACK_CHIPSET_DONE` 表示初始化结束。
 
