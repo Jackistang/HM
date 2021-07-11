@@ -1,5 +1,6 @@
 #include "hci_transport_h4.h"
 #include "h4_inner.h"
+#include "chipset.h"
 #include <string.h>
 #include <assert.h>
 
@@ -21,6 +22,9 @@ int rt_hci_transport_h4_open(void)
         return err;
     
     _receiver_init();
+
+    rt_chipset_init_start();
+
     return 0;
 }
 

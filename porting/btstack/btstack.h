@@ -13,6 +13,7 @@ extern "C" {
  */
 const hci_transport_t * hci_transport_h4_instance_for_uart(const btstack_uart_t * uart_driver);
 
+const btstack_chipset_t * btstack_chipset_hci_middleware_instance(void);
 
 #ifdef __cplusplus
 }

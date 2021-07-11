@@ -95,3 +95,26 @@ const hci_transport_t * hci_transport_h4_instance_for_uart(const btstack_uart_t 
     (void)(uart_driver);
     return &hci_transport_h4;
 }
+
+
+#include "btstack_chipset.h"
+
+static void chipset_init(const void * transport_config)
+{
+    return ;
+}
+
+static btstack_chipset_result_t chipset_next_command(uint8_t * hci_cmd_buffer)
+{
+    return BTSTACK_CHIPSET_DONE;
+}
+
+static const btstack_chipset_t btstack_chipset_hci_middleware = {
+    .name = "hci_middleware",
+    .init = chipset_init,
+    .next_command = chipset_next_command,
+};
+
+const btstack_chipset_t * btstack_chipset_hci_middleware_instance(void){
+    return &btstack_chipset_hci_middleware;
+}
