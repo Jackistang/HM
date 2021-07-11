@@ -12,7 +12,7 @@ enum {
     CHIPSET_ITER_CONTINUE,
 };
 
-struct rt_chipset {
+typedef struct rt_chipset {
     char *name;
 
     /**
@@ -20,7 +20,7 @@ struct rt_chipset {
      * 
      * @return void
     */
-    void (*init)(void);
+    void (*init)(void *args);
 
     /**
      * @brief Send vendor HCI command.
@@ -32,25 +32,27 @@ struct rt_chipset {
      * @retval  CHIPSET_ITER_CONTINUE   Continue send command.
      * 
     */
-    int (*next_hci_command)(const uint8_t **buf);
+    int (*next_hci_command)(uint8_t *buf);
 
-};
+} rt_chipset_t;
 
 /**
- * @brief Register a chipset handle.
+ * @brief Get a chipset instance.
  * 
- * @param[in] chipset   A chipset handle, should be static memory.
- * 
- * @return void
+ * @return rt_chipset_t *
+ * @retval  Non-NULL on success.
+ * @retval  NULL on fail.
 */
-extern void rt_chipset_register(struct rt_chipset *chipset);
+extern rt_chipset_t* rt_chipset_get_instance(void);
 
 /**
  * @brief Init chipset.
  * 
- * @return void
+ * @return int
+ * @retval  0   Success
+ * @retval  -1  Fail
 */
-extern void rt_chipset_init(void);
+extern int rt_chipset_init_start(void);
 
 
 #ifdef __cplusplus
