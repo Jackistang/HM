@@ -110,6 +110,8 @@ void rt_hci_transport_h4_register_packet_handler(void (*handler)(int packet_type
     g_package_cb = handler;
 }
 
+#include <rtthread.h>
+
 typedef enum {
     H4_RECV_NONE,
     H4_RECV_PACKAGE_TYPE,
@@ -120,9 +122,36 @@ typedef enum {
     H4_RECV_ISO_HEADER,
 } h4_recv_state_t;
 
+#define HCI_TRANS_H4_TYPE_CMD   (0x01)
+#define HCI_TRANS_H4_TYPE_ACL   (0x02)
+#define HCI_TRANS_H4_TYPE_SCO   (0x03)
+#define HCI_TRANS_H4_TYPE_EVT   (0x04)
+
+
+#define HCI_COMMAND_BUF_SIZE 260
+#define HCI_EVENT_BUF_SIZE   70
+#define HCI_ACL_BUF_SIZE     255
+
+#define MEMPOOL_SIZE(n, block_size) (((block_size) + 4) * (n))
+
+static struct rt_mempool evt_pool;
+
+ALIGN(RT_ALIGN_SIZE)
+static uint8_t evt_pool_buf[MEMPOOL_SIZE(4, HCI_EVENT_BUF_SIZE)];
+
+static struct {
+    h4_recv_state_t recv_state;
+} h4_object;
+
 int hci_trans_h4_recv_byte(uint8_t byte)
 {
+    switch (h4_object.recv_state) {
+    case H4_RECV_NONE:
+        break;
     
+    default:
+        return -1;
+    }
 }
 
 /*
@@ -138,3 +167,29 @@ int hci_trans_h4_recv_byte(uint8_t byte)
 */
 void *hci_trans_h4_alloc(int type);
 void hci_trans_h4_free(void *ptr);
+
+
+
+struct hci_cmd {
+    uint16_t opcode;
+    uint8_t length;
+    uint8_t data[0];
+} __attribute__((packed));
+
+struct hci_acl {
+    uint16_t handle;    // Include PB, BC flag.
+    uint16_t length;
+    uint8_t data[0];
+} __attribute__((packed));
+
+struct hci_sco {
+    uint16_t handle;    // Include Package Status flag, RFU.
+    uint8_t length;
+    uint8_t data[0];
+} __attribute__((packed));
+
+struct hci_evt {
+    uint8_t evt_code;
+    uint8_t length;
+    uint8_t data[0];
+} __attribute__((packed));
