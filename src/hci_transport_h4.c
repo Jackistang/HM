@@ -109,3 +109,32 @@ void rt_hci_transport_h4_register_packet_handler(void (*handler)(int packet_type
 {
     g_package_cb = handler;
 }
+
+typedef enum {
+    H4_RECV_NONE,
+    H4_RECV_PACKAGE_TYPE,
+    H4_RECV_COMMAND_HEADER,
+    H4_RECV_ACL_HEADER,
+    H4_RECV_SCO_HEADER,
+    H4_RECV_EVENT_HEADER,
+    H4_RECV_ISO_HEADER,
+} h4_recv_state_t;
+
+int hci_trans_h4_recv_byte(uint8_t byte)
+{
+    
+}
+
+/*
+    uint8_t *p = hci_trans_h4_alloc(0x01);
+    fill hci command to p.
+    hci_trans_h4_send(p);
+    hci_trans_h4_free(p);
+*/
+
+/**
+ * 
+ * @note Alloc memory begin with the second byte in memory block, the first byte is used for H4 type when send.
+*/
+void *hci_trans_h4_alloc(int type);
+void hci_trans_h4_free(void *ptr);
