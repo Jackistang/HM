@@ -34,5 +34,6 @@ int os_task_remove(struct os_task *t)
 
 void os_sleep(int ms)
 {
-    sleep(ms);
+    uint32_t us = ms * 1000;
+    usleep(us);
 }

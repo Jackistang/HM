@@ -170,7 +170,12 @@ static int hci_transport_uart_set_params(int type, void *params)
 
     switch (type) {
     case UART_TYPE_INIT:
-        toptions.c_cflag |= CREAD;
+        cfmakeraw(&toptions);   // make raw
+        toptions.c_cflag |= CREAD | CLOCAL;
+        toptions.c_cc[VMIN]  = 1;
+        toptions.c_cc[VTIME] = 0;
+        toptions.c_iflag &= ~(IXON | IXOFF | IXANY); // turn off s/w flow ctrl
+        break;
     case UART_TYPE_BAUDRATE:
         set_baudrate(&toptions, params);
         break;
@@ -220,6 +225,8 @@ int os_uart_open(void)
     }
 
     int err;
+    if ((err = hci_transport_uart_set_params(UART_TYPE_INIT, NULL)))
+        return -1;
     if ((err = hci_transport_uart_set_params(UART_TYPE_BAUDRATE, &uart_config->baudrate)))
         return -1;
     if ((err = hci_transport_uart_set_params(UART_TYPE_DATABIT, &uart_config->databit)))
@@ -231,6 +238,8 @@ int os_uart_open(void)
     if ((err = hci_transport_uart_set_params(UART_TYPE_FLOWCONTROL, &uart_config->flowcontrol)))
         return -1;
     
+    os_sleep(100);
+
     return 0;
 }
 

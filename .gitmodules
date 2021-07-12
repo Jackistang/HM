@@ -1,0 +1,3 @@
+[submodule "3rd-party/mpool"]
+	path = 3rd-party/mpool
+	url = https://github.com/isayme/mpool.git

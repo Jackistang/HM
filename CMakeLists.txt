@@ -6,6 +6,7 @@ set(CMAKE_BUILD_TYPE "Debug")
 
 set(SOURCES
     # src/hci_transport_uart_linux.c
+    src/chipset.c
     src/hci_transport_h4.c
     src/receiver.c
 
@@ -16,7 +17,11 @@ set(SOURCES
     porting/os/linux/src/os_uart.c
 
 # 3rd-party
-    3rd-party/ringbuffer.c
+    3rd-party/ringbuffer/ringbuffer.c
+    3rd-party/mpool/mpool.c
+
+# chipset
+    chipset/zephyr/chipset_zephyr.c
 
 # test
     tests/test.c
@@ -34,7 +39,8 @@ target_include_directories(hci_middleware
     ${PROJECT_SOURCE_DIR}/porting/os/linux/include
 
 # 3rd-party
-    ${PROJECT_SOURCE_DIR}/3rd-party/
+    ${PROJECT_SOURCE_DIR}/3rd-party/ringbuffer
+    ${PROJECT_SOURCE_DIR}/3rd-party/mpool
 )
 
 target_link_libraries(hci_middleware
