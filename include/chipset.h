@@ -1,5 +1,5 @@
-#ifndef HCI_TRANSPORT_CHIPSET_H
-#define HCI_TRANSPORT_CHIPSET_H
+#ifndef HM_CHIPSET_H
+#define HM_CHIPSET_H
 
 #include <stdint.h>
 
@@ -52,9 +52,10 @@ extern void rt_chipset_register(struct rt_chipset *chipset);
 */
 extern void rt_chipset_init(void);
 
+extern int hci_cmd_send_sync(uint16_t opcode, uint8_t *buf, uint8_t **rsp);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* HCI_TRANSPORT_CHIPSET_H */
+#endif /* HM_CHIPSET_H */
