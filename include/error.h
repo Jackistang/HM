@@ -5,11 +5,13 @@
 extern "C" {
 #endif
 
-#define HM_SUCCESS      0
-#define HM_NOT_OPEN     1
-#define HM_NO_MEMORY    2
+#define HM_SUCCESS          0
+#define HM_NOT_OPEN         1
+#define HM_NO_MEMORY        2
+#define HM_THREAD_ERROR     3
+#define HM_UART_SEND_ERR    4
 
-#define HM_NOT_SUPPORT  10
+#define HM_NOT_SUPPORT      10
 
 #ifdef __cplusplus
 }
