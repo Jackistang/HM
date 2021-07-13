@@ -126,6 +126,7 @@ typedef enum {
 #define HCI_TRANS_H4_TYPE_ACL   (0x02)
 #define HCI_TRANS_H4_TYPE_SCO   (0x03)
 #define HCI_TRANS_H4_TYPE_EVT   (0x04)
+#define HCI_TRANS_H4_TYPE_ISO   (0x05)
 
 
 #define HCI_COMMAND_BUF_SIZE 260
@@ -139,13 +140,18 @@ static struct rt_mempool evt_pool;
 ALIGN(RT_ALIGN_SIZE)
 static uint8_t evt_pool_buf[MEMPOOL_SIZE(4, HCI_EVENT_BUF_SIZE)];
 
-static struct {
-    h4_recv_state_t recv_state;
-} h4_object;
+
+static h4_recv_state_t recv_state;
+
+
+void hci_trans_h4_register_packge_callback(void (*callback)(int package_type, uint8_t *packge, uint16_t size))
+{
+    g_package_cb = callback;
+}
 
 int hci_trans_h4_recv_byte(uint8_t byte)
 {
-    switch (h4_object.recv_state) {
+    switch (recv_state) {
     case H4_RECV_NONE:
         break;
     
