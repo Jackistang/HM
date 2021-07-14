@@ -81,11 +81,54 @@ extern void hci_trans_h4_init(void);
 extern int hci_trans_h4_open(void);
 extern int hci_trans_h4_close(void);
 
+/**
+ * @brief Register a callback for incoming package.
+ * 
+ * @param callback A callback function pointer.
+ */
 extern void hci_trans_h4_register_packge_callback(void (*callback)(uint8_t package_type, uint8_t *packge, uint16_t size));
+
+/**
+ * @brief HCI transport h4 receive a byte from uart, used for hci_transport_h4.c .
+ * 
+ * @param byte A byte coming from uart.
+ * 
+ * @return int 
+ * @retval  HM_SUCCESS      Receive byte success.
+ * @retval  HM_NOT_SUPPORT  H4 sync loss, or this package not support now.
+ */
 extern int hci_trans_h4_recv_byte(uint8_t byte);
 
+/**
+ * @brief Alloc a enough memory to send data.
+ * 
+ * @param type The H4 package type, HCI_TRANS_H4_TYPE_CMD, HCI_TRANS_H4_TYPE_ACL, ...
+ * 
+ * @return void* 
+ * @retval Non-NULL A memory to storage HCI data.
+ * @retval NULL     Alloc fail. Memory pool is mot enough or this type package not support send_alloc.
+ * 
+ * @note    If memory alloc success, need to free it use `hci_trans_h4_send_free` .
+ */
 extern void *hci_trans_h4_send_alloc(uint8_t type);
+
+/**
+ * @brief Free memory buffer alloc by `hci_trans_h4_send_alloc` .
+ * 
+ * @param buf Memory buffer.
+ */
 extern void hci_trans_h4_send_free(uint8_t *buf);
+
+/**
+ * @brief HCI transport h4 send package to uart.
+ * 
+ * @param type The H4 package type, HCI_TRANS_H4_TYPE_CMD, HCI_TRANS_H4_TYPE_ACL, ...
+ * @param data HCI package data.
+ * 
+ * @return int 
+ * @retval  HM_SUCCESS  Send success.
+ * @retval  HM_NOT_SUPPORT  This type package not support now.
+ */
 extern int hci_trans_h4_send(uint8_t type, uint8_t *data);
 
 #ifdef __cplusplus
