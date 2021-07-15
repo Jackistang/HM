@@ -5,7 +5,6 @@
 extern "C" {
 #endif
 
-// #define ARRAY_SIZE(array)   ((sizeof(array) / sizeof(array[0])))
 
 #ifdef __cplusplus
 }
