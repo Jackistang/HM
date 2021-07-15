@@ -120,7 +120,13 @@ int hci_trans_h4_close(void)
 
 int hci_trans_h4_register_callback(hci_trans_h4_package_callback_t callback)
 {
-    package_callback_t *pkg_callback = rt_malloc(sizeof(package_callback_t));
+    package_callback_t *pkg_callback;
+    rt_list_for_each_entry(pkg_callback, &h4_object.callback_list, list) {
+        if (pkg_callback->cb == callback)   /* This callback function has been registered. */
+            return ;
+    }
+
+    pkg_callback = rt_malloc(sizeof(package_callback_t));
     if (pkg_callback == NULL)
         return HM_NO_MEMORY;
     

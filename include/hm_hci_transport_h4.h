@@ -62,6 +62,8 @@ typedef void (*hci_trans_h4_package_callback_t)(uint8_t pkg_type, uint8_t *pkg, 
  * @return int
  * @retval  HM_SUCCESS      Register success.
  * @retval  HM_NO_MEMORY    Malloc memory fail.
+ * 
+ * @note If use btstack, this callback is resposibility to free package buffer with `rt_mp_free()`.
  */
 extern int hci_trans_h4_register_callback(hci_trans_h4_package_callback_t callback);
 
