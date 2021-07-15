@@ -22,30 +22,6 @@ typedef enum {
 */
 #define MEMPOOL_SIZE(n, block_size) (RT_ALIGN(((block_size) + 4), RT_ALIGN_SIZE) * (n))
 
-struct hci_cmd {
-    uint16_t opcode;
-    uint8_t length;
-    uint8_t data[0];
-} __attribute__((packed));
-
-struct hci_acl {
-    uint16_t handle;    // Include PB, BC flag.
-    uint16_t length;
-    uint8_t data[0];
-} __attribute__((packed));
-
-struct hci_sco {
-    uint16_t handle;    // Include Package Status flag, RFU.
-    uint8_t length;
-    uint8_t data[0];
-} __attribute__((packed));
-
-struct hci_evt {
-    uint8_t evt_code;
-    uint8_t length;
-    uint8_t data[0];
-} __attribute__((packed));
-
 struct h4_rx_evt {
     uint8_t *data;
     uint16_t cur;
@@ -69,12 +45,24 @@ struct h4_rx {
 struct h4_tx {
 
 };
+typedef struct package_callback {
+    hci_trans_h4_package_callback_t cb;
+    rt_list_t list;
+} package_callback_t;
+
+typedef struct hci_send_sync_object {
+    int cc_evt; /* Receive command complete event or not. */
+    hci_cmd_send_sync_callback_t cb;
+    struct rt_semaphore sync_sem;
+} hci_send_sync_object_t;
 
 struct h4_object {
     struct h4_rx rx;
     struct h4_tx tx;
 
-    void (*package_cb)(uint8_t type, uint8_t *buf, uint16_t size);
+    hci_send_sync_object_t send_sync_object; 
+
+    rt_list_t   callback_list;
 };
 
 static struct h4_object h4_object;
@@ -94,28 +82,85 @@ static struct rt_mempool acl_pool;
 ALIGN(RT_ALIGN_SIZE)
 static uint8_t acl_pool_buf[MEMPOOL_SIZE(1, HCI_ACL_BUF_SIZE)];
 
-void hci_trans_h4_init(void)
+void hci_trans_h4_init(struct hci_trans_h4_config *config)
 {
     rt_mp_init(&cmd_pool, "cmd_pool", cmd_pool_buf, ARRAY_SIZE(cmd_pool_buf), HCI_COMMAND_BUF_SIZE);
     rt_mp_init(&evt_pool, "evt_pool", evt_pool_buf, ARRAY_SIZE(evt_pool_buf), HCI_EVENT_BUF_SIZE);
     rt_mp_init(&acl_pool, "acl_pool", acl_pool_buf, ARRAY_SIZE(acl_pool_buf), HCI_ACL_BUF_SIZE);
+
+    hci_trans_h4_uart_init(&config->uart_config);
+
+    h4_object.send_sync_object.cb = NULL;
+    rt_sem_init(&h4_object.send_sync_object.sync_sem, "send sync sem", 0, RT_IPC_FLAG_PRIO);
+
+    rt_list_init(&h4_object.callback_list);
 }
 
 int hci_trans_h4_open(void)
 {
+    int err;
     h4_object.rx.state = H4_RECV_STATE_NONE;
+
+    if ((err = hci_trans_h4_uart_open()))
+        return err;
+
     return HM_SUCCESS;
 }
 
 int hci_trans_h4_close(void)
 {
+    int err;
     h4_object.rx.state = H4_RECV_STATE_NONE;
+
+    if ((err = hci_trans_h4_uart_close()))
+        return err;
+
     return HM_SUCCESS;
 }
 
-void hci_trans_h4_register_packge_callback(void (*callback)(uint8_t package_type, uint8_t *packge, uint16_t size))
+int hci_trans_h4_register_callback(hci_trans_h4_package_callback_t callback)
 {
-    h4_object.package_cb = callback;
+    package_callback_t *pkg_callback = rt_malloc(sizeof(package_callback_t));
+    if (pkg_callback == NULL)
+        return HM_NO_MEMORY;
+    
+    pkg_callback->cb = callback;
+    rt_list_insert_after(&h4_object.callback_list, &pkg_callback->list);
+
+    return HM_SUCCESS;
+}
+
+void hci_trans_h4_remove_callback(hci_trans_h4_package_callback_t callback)
+{
+    package_callback_t *pkg_callback;
+    rt_list_for_each_entry(pkg_callback, &h4_object.callback_list, list) {
+        if (pkg_callback->cb == callback)
+            break;
+    }
+    rt_list_remove(&pkg_callback->list);
+    rt_free(pkg_callback);
+}
+
+static void hci_trans_h4_pkg_notify(uint8_t type, uint8_t *pkg, uint16_t len)
+{
+    /* hci_cmd_send_sync() function will set this, used for sync callback, 
+        and don't call other registered callback. */
+    if (h4_object.send_sync_object.cb) {
+        RT_ASSERT(type == HCI_TRANS_H4_TYPE_EVT);
+        h4_object.send_sync_object.cb(pkg, len);
+
+        /* Command Complete event */
+        if (pkg[0] == 0x0E) {
+            h4_object.send_sync_object.cc_evt = 1;
+        }
+        rt_sem_release(&h4_object.send_sync_object.sync_sem);
+        return ;
+    }
+
+    package_callback_t *pkg_callback;
+    rt_list_for_each_entry(pkg_callback, &h4_object.callback_list, list) {
+        pkg_callback->cb(type, pkg, len);
+    }
 }
 
 static int hci_trans_h4_recv_type(uint8_t byte)
@@ -151,17 +196,16 @@ static int hci_trans_h4_recv_acl(uint8_t byte)
 
     acl->data[acl->cur++] = byte;
 
-    if (acl->cur < sizeof(struct hci_acl))
+    if (acl->cur < sizeof(struct hm_hci_acl))
         return HM_SUCCESS;
 
-    if (acl->cur == sizeof(struct hci_acl)) {
+    if (acl->cur == sizeof(struct hm_hci_acl)) {
         acl->len = (uint16_t)acl->data[2] | (uint16_t)acl->data[3] << 8;    // Parameter length
-        acl->len += sizeof(struct hci_acl);     // ACL package header.
+        acl->len += sizeof(struct hm_hci_acl);     // ACL package header.
     }
 
     if (acl->cur == acl->len) {
-        RT_ASSERT(h4_object.package_cb);
-        h4_object.package_cb(HCI_TRANS_H4_TYPE_ACL, acl->data, acl->len);
+        hci_trans_h4_pkg_notify(HCI_TRANS_H4_TYPE_ACL, acl->data, acl->len);
         hci_trans_h4_free(acl->data);
         h4_object.rx.state = H4_RECV_STATE_NONE;
     }
@@ -181,15 +225,14 @@ static int hci_trans_h4_recv_evt(uint8_t byte)
 
     evt->data[evt->cur++] = byte;
 
-    if (evt->cur < sizeof(struct hci_evt))
+    if (evt->cur < sizeof(struct hm_hci_evt))
         return HM_SUCCESS;
     
-    if (evt->cur == sizeof(struct hci_evt))
-        evt->len = evt->data[1] + sizeof(struct hci_evt);
+    if (evt->cur == sizeof(struct hm_hci_evt))
+        evt->len = evt->data[1] + sizeof(struct hm_hci_evt);
     
     if (evt->cur == evt->len) {
-        RT_ASSERT(h4_object.package_cb);
-        h4_object.package_cb(HCI_TRANS_H4_TYPE_EVT, evt->data, evt->len);
+        hci_trans_h4_pkg_notify(HCI_TRANS_H4_TYPE_EVT, evt->data, evt->len);
         hci_trans_h4_free(evt->data);
         h4_object.rx.state = H4_RECV_STATE_NONE;
     }
@@ -211,6 +254,9 @@ int hci_trans_h4_recv_byte(uint8_t byte)
     case H4_RECV_STATE_EVT:
         err = hci_trans_h4_recv_evt(byte);
         break;
+    case H4_RECV_STATE_CMD:
+    case H4_RECV_STATE_SCO:
+    case H4_RECV_STATE_ISO:
     default:
         return HM_NOT_SUPPORT;
     }
@@ -235,6 +281,8 @@ static int hci_trans_h4_alloc(uint8_t type, uint8_t **ptr)
     case HCI_TRANS_H4_TYPE_ACL:
         p = rt_mp_alloc(&acl_pool, RT_WAITING_NO);
         break;
+    case HCI_TRANS_H4_TYPE_SCO:
+    case HCI_TRANS_H4_TYPE_ISO:
     default:
         return HM_NOT_SUPPORT;
     }
@@ -262,14 +310,15 @@ static void hci_trans_h4_free(void *ptr)
 */
 int hci_trans_h4_send(uint8_t type, uint8_t *data)
 {
+    int err;
     uint16_t len = 0;
     
     switch (type) {
     case HCI_TRANS_H4_TYPE_CMD:
-        len = 1 + data[2] + sizeof(struct hci_cmd);
+        len = 1 + data[2] + sizeof(struct hm_hci_cmd);
         break;
     case HCI_TRANS_H4_TYPE_ACL:
-        len = 1 + ((uint16_t)data[2] | (uint16_t)data[3] << 8) + sizeof(struct hci_acl);
+        len = 1 + ((uint16_t)data[2] | (uint16_t)data[3] << 8) + sizeof(struct hm_hci_acl);
         break;
     default:
         return HM_NOT_SUPPORT;
@@ -278,7 +327,9 @@ int hci_trans_h4_send(uint8_t type, uint8_t *data)
     uint8_t *p = data - 1;
     *p = type;
     
-    hci_trans_h4_uart_send(p, len);
+    err = hci_trans_h4_uart_send(p, len);
+    if (err != HM_SUCCESS)
+        return err;
 
     return HM_SUCCESS;
 }
@@ -306,4 +357,51 @@ void hci_trans_h4_send_free(uint8_t *buf)
     hci_trans_h4_free(p);
 }
 
+static void hci_cmd_send_sync_dummy_callback(uint8_t *hci_evt, uint16_t len)
+{
+    return ;
+}
+
+int hci_cmd_send_sync(uint8_t *hci_cmd, uint16_t len, int32_t time, hci_cmd_send_sync_callback_t callback)
+{
+    RT_ASSERT(hci_cmd);
+    RT_ASSERT(len > 0);
+
+    int err;
+    
+    if (callback == NULL)
+        h4_object.send_sync_object.cb = hci_cmd_send_sync_dummy_callback;
+    else
+        h4_object.send_sync_object.cb = callback;
+
+    uint8_t *p = hci_trans_h4_send_alloc(HCI_TRANS_H4_TYPE_CMD);
+    if (p == NULL) {
+        err = HM_NO_MEMORY;
+        goto err_alloc;
+    }
+
+    rt_memcpy(p, hci_cmd, len);
+    if ((err = hci_trans_h4_send(HCI_TRANS_H4_TYPE_CMD, p)))
+        goto err_send;
+
+    err = rt_sem_take(&h4_object.send_sync_object.sync_sem, time);
+    if (err) {
+        rt_kprintf("HCI command send sync timeout.\n");
+        goto err_timeout;
+    }
+
+    if (h4_object.send_sync_object.cc_evt) {
+        err = HM_SUCCESS;
+        h4_object.send_sync_object.cc_evt = 0;
+    } else {
+        err = HM_HCI_CMD_ERROR;
+    }
+
+err_timeout:
+err_send:
+    hci_trans_h4_send_free(p);
+err_alloc:
+    h4_object.send_sync_object.cb = NULL;
+    return err;
+}
 

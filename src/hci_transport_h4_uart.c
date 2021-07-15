@@ -12,7 +12,7 @@
 
 struct h4_uart_config{
     const char *name;
-    int flowcontrol;
+    int flowcontrol;        // RT-Thread not support CTS/RTS flowcontrol now, default is true.
     struct serial_configure rt_config;
 };
 

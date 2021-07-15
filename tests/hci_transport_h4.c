@@ -1,13 +1,25 @@
 #include <rtthread.h>
+#include <rtdevice.h>
 #include "utest.h"
 #include "hci_transport_h4.h"
 
 static struct rt_semaphore sync_sem;
 
+struct hci_trans_h4_config h4_config = {
+    .uart_config = {
+        .device_name = "uart1",
+        .databit     = DATA_BITS_8,
+        .stopbit     = STOP_BITS_1,
+        .parity      = PARITY_NONE,
+        .baudrate    = BAUD_RATE_115200,
+        .flowcontrol = 1,
+    },
+};
+
 static rt_err_t utest_tc_init(void)
 {
     rt_sem_init(&sync_sem, "sync_sem", 0, RT_IPC_FLAG_PRIO);
-    hci_trans_h4_init();
+    hci_trans_h4_init(&h4_config);
 
     return RT_EOK;
 }
@@ -42,7 +54,7 @@ hci_trans_h4_recv_byte_test_t test_recv_byte_table[] = {
     {HCI_TRANS_H4_TYPE_ISO, 7, {0x05, 0x01, 0x00, 0x02, 0xc0, 0xfc, 0xfc}},
 };
 
-void test_hci_trans_h4_recv_byte_callback(uint8_t package_type, uint8_t *package, uint16_t size)
+static void test_hci_trans_h4_recv_byte_callback(uint8_t package_type, uint8_t *package, uint16_t size)
 {
     hci_trans_h4_recv_byte_test_t *p = &test_recv_byte_table[test_recv_byte_table_index];
     uassert_int_equal(package_type, p->expected_package_type);
@@ -67,9 +79,8 @@ static void test_hci_trans_h4_recv_byte(void)
 {
     int err = 0;
     hci_trans_h4_recv_byte_test_t *p = RT_NULL;
-    hci_trans_h4_open();
 
-    hci_trans_h4_register_packge_callback(test_hci_trans_h4_recv_byte_callback);
+    hci_trans_h4_register_callback(test_hci_trans_h4_recv_byte_callback);
 
     // // Command
     // RECV_BYTE_TEST(0);
@@ -92,7 +103,7 @@ static void test_hci_trans_h4_recv_byte(void)
     // RECV_BYTE_TEST(9);
     // RECV_BYTE_TEST(10);
 
-    hci_trans_h4_close();
+    hci_trans_h4_remove_callback(test_hci_trans_h4_recv_byte_callback);
 }
 
 typedef struct {
@@ -126,7 +137,7 @@ RT_WEAK int hci_trans_h4_uart_send(uint8_t *data, uint16_t len)
     return len;
 }
 
-#define SEND_TEST(n) do {    \
+#define SEND_MOCK_TEST(n) do {    \
     test_send_table_index = n; \
     p = &test_send_table[test_send_table_index];  \
     data = hci_trans_h4_send_alloc(p->expected_package_type);   \
@@ -146,28 +157,182 @@ static void mock_test_hci_trans_h4_send(void)
     hci_trans_h4_open();
 
     // Command
-    SEND_TEST(0);
-    SEND_TEST(1);
+    SEND_MOCK_TEST(0);
+    SEND_MOCK_TEST(1);
 
     // ACL
-    SEND_TEST(2);
-    SEND_TEST(3);
+    SEND_MOCK_TEST(2);
+    SEND_MOCK_TEST(3);
 
     // // SCO
-    // SEND_TEST(4);
-    // SEND_TEST(5);
+    // SEND_MOCK_TEST(4);
+    // SEND_MOCK_TEST(5);
 
     // // ISO
-    // SEND_TEST(6);
-    // SEND_TEST(7);
-    // SEND_TEST(8);
+    // SEND_MOCK_TEST(6);
+    // SEND_MOCK_TEST(7);
+    // SEND_MOCK_TEST(8);
 
+    hci_trans_h4_close();
+}
+
+struct test_h4_send_object {
+    uint8_t send_pkg_type;
+    uint8_t *send;
+    uint16_t send_len;
+    uint8_t expected_recv_pkg_type;
+    uint8_t *expected_recv;
+    uint16_t expected_recv_len;
+};
+struct test_h4_send_object h4_send_object;
+
+static uint8_t h4_send1[] = { 0x03, 0x0C, 0x00 };
+static uint8_t h4_recv1[] = { 0x0E, 0x04, 0x01, 0x03, 0x0C, 0x00 };
+
+#define SEND_TEST(send_type, recv_type, idx)    do {    \
+    h4_send_object.send_pkg_type = send_type;   \
+    h4_send_object.send = h4_send##idx; \
+    h4_send_object.send_len = ARRAY_SIZE(h4_send##idx); \
+    h4_send_object.expected_recv_pkg_type = recv_type;  \
+    h4_send_object.expected_recv = h4_recv##idx;    \
+    h4_send_object.expected_recv_len = ARRAY_SIZE(h4_recv##idx);    \
+    \
+    p = (uint8_t *)hci_trans_h4_send_alloc(h4_send_object.send_pkg_type);   \
+    uassert_not_null(p);    \
+    rt_memcpy(p, h4_send_object.send, h4_send_object.send_len); \
+    \
+    err = hci_trans_h4_send(h4_send_object.send_pkg_type, p);   \
+    uassert_int_equal(err, HM_SUCCESS); \
+    err = rt_sem_take(&sync_sem, 10);   \
+    uassert_int_equal(err, RT_EOK); \
+    \
+    hci_trans_h4_send_free(p);  \
+    p = NULL;   \
+} while (0)
+
+static void test_hci_trans_h4_send_callback(uint8_t package_type, uint8_t *package, uint16_t size)
+{
+    uassert_int_equal(package_type, h4_send_object.expected_recv_pkg_type);
+    uassert_int_equal(size, h4_send_object.expected_recv_len);
+    uassert_buf_equal(package, h4_send_object.expected_recv, size);
+
+    rt_sem_release(&sync_sem);
+}
+
+static void test_hci_trans_h4_send(void)
+{
+    int err;
+    uint8_t *p = NULL;
+    hci_trans_h4_open();
+    hci_trans_h4_register_callback(test_hci_trans_h4_send_callback);
+
+/*     h4_send_object.send_pkg_type = HCI_TRANS_H4_TYPE_CMD;
+    h4_send_object.send = h4_send1;
+    h4_send_object.send_len = ARRAY_SIZE(h4_send1);
+    h4_send_object.expected_recv_pkg_type = HCI_TRANS_H4_TYPE_EVT;
+    h4_send_object.expected_recv = h4_recv1;
+    h4_send_object.expected_recv_len = ARRAY_SIZE(h4_recv1);
+
+    p = (uint8_t *)hci_trans_h4_send_alloc(h4_send_object.send_pkg_type);
+    uassert_not_null(p);
+    rt_memcpy(p, h4_send_object.send, h4_send_object.send_len);
+
+    err = hci_trans_h4_send(h4_send_object.send_pkg_type, p);
+    uassert_int_equal(err, HM_SUCCESS);
+    err = rt_sem_take(&sync_sem, 10);
+    uassert_int_equal(err, RT_EOK);
+
+    hci_trans_h4_send_free(p);
+    p = NULL; */
+    
+    SEND_TEST(HCI_TRANS_H4_TYPE_CMD, HCI_TRANS_H4_TYPE_EVT, 1);
+
+    hci_trans_h4_remove_callback(test_hci_trans_h4_send_callback);
+    hci_trans_h4_close();
+}
+
+static uint16_t test_hci_trans_h4_callback_count = 0;
+
+static void test_hci_trans_h4_callback_recv_pkg()
+{
+    int err;
+    uint8_t pkg[] = { 0x04, 0x00, 0x00};
+    for (size_t i = 0; i < ARRAY_SIZE(pkg); i++) {
+        err = hci_trans_h4_recv_byte(pkg[i]);
+        uassert_int_equal(err, HM_SUCCESS);
+    }
+}
+
+static void test_hci_trans_h4_callback1(uint8_t package_type, uint8_t *package, uint16_t size)
+{
+    test_hci_trans_h4_callback_count += 1;
+}
+
+static void test_hci_trans_h4_callback2(uint8_t package_type, uint8_t *package, uint16_t size)
+{
+    test_hci_trans_h4_callback_count += 2;
+}
+
+static void test_hci_trans_h4_callback(void)
+{
+    test_hci_trans_h4_callback_count = 0;
+    hci_trans_h4_register_callback(test_hci_trans_h4_callback1);
+    hci_trans_h4_register_callback(test_hci_trans_h4_callback2);
+    test_hci_trans_h4_callback_recv_pkg();
+    uassert_int_equal(test_hci_trans_h4_callback_count, 3);
+
+    test_hci_trans_h4_callback_count = 0;
+    hci_trans_h4_remove_callback(test_hci_trans_h4_callback2);
+    test_hci_trans_h4_callback_recv_pkg();
+    uassert_int_equal(test_hci_trans_h4_callback_count, 1);
+
+    test_hci_trans_h4_callback_count = 0;
+    hci_trans_h4_remove_callback(test_hci_trans_h4_callback1);
+    test_hci_trans_h4_callback_recv_pkg();
+    uassert_int_equal(test_hci_trans_h4_callback_count, 0);
+}
+
+static uint8_t hci_cmd_send1[] = { 0x03, 0x0C, 0x00 };
+static uint8_t hci_evt_recv1[] = { 0x0E, 0x04, 0x01, 0x03, 0x0C, 0x00 };
+static int test_hci_cmd_send_sync_count = 0;
+
+static void hci_cmd_send_sync_callback(uint8_t *hci_evt, uint16_t len)
+{
+    uassert_int_equal(len, ARRAY_SIZE(hci_evt_recv1));
+    uassert_buf_equal(hci_evt, hci_evt_recv1, len);
+}
+
+static void test_hci_cmd_send_sync_h4_callback(uint8_t package_type, uint8_t *package, uint16_t size)
+{
+    test_hci_cmd_send_sync_count += 1;
+}
+
+static void test_hci_cmd_send_sync(void)
+{
+    int err;
+    hci_trans_h4_open();
+    hci_trans_h4_register_callback(test_hci_cmd_send_sync_h4_callback);
+
+    err = hci_cmd_send_sync(hci_cmd_send1, ARRAY_SIZE(hci_cmd_send1), 100, NULL);
+    uassert_int_equal(err, HM_SUCCESS);
+    uassert_int_equal(test_hci_cmd_send_sync_count, 0);
+
+    err = hci_cmd_send_sync(hci_cmd_send1, ARRAY_SIZE(hci_cmd_send1), 100, hci_cmd_send_sync_callback);
+    uassert_int_equal(err, HM_SUCCESS);
+    uassert_int_equal(test_hci_cmd_send_sync_count, 0);
+
+    hci_trans_h4_remove_callback(test_hci_cmd_send_sync_h4_callback);
     hci_trans_h4_close();
 }
 
 static void testcase(void)
 {
     UTEST_UNIT_RUN(test_hci_trans_h4_recv_byte);
+    UTEST_UNIT_RUN(test_hci_trans_h4_send);
+    UTEST_UNIT_RUN(test_hci_trans_h4_callback);
+    UTEST_UNIT_RUN(test_hci_cmd_send_sync);
+
+    /* For mock test hci_trans_h4_send() */
     // UTEST_UNIT_RUN(mock_test_hci_trans_h4_send);
 }
-UTEST_TC_EXPORT(testcase, "hm.hci_transport_h4", utest_tc_init, utest_tc_cleanup, 10);
+UTEST_TC_EXPORT(testcase, "hm.hci_transport_h4", utest_tc_init, utest_tc_cleanup, 1000);
