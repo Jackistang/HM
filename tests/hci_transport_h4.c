@@ -1,7 +1,7 @@
 #include <rtthread.h>
 #include <rtdevice.h>
 #include "utest.h"
-#include "hci_transport_h4.h"
+#include "hm_hci_transport_h4.h"
 
 static struct rt_semaphore sync_sem;
 

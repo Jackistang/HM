@@ -1,6 +1,6 @@
 #include <rtthread.h>
-#include "hci_transport_h4.h"
-#include "hci_transport_h4_uart.h"
+#include "hm_hci_transport_h4.h"
+#include "hm_hci_transport_h4_uart.h"
 
 typedef enum {
     H4_RECV_STATE_NONE,
@@ -206,7 +206,11 @@ static int hci_trans_h4_recv_acl(uint8_t byte)
 
     if (acl->cur == acl->len) {
         hci_trans_h4_pkg_notify(HCI_TRANS_H4_TYPE_ACL, acl->data, acl->len);
+#ifdef HM_CONFIG_BTSTACK
+        /* Transfer the responsibility of free memory to btstack user.*/
+#else
         hci_trans_h4_free(acl->data);
+#endif
         h4_object.rx.state = H4_RECV_STATE_NONE;
     }
 
@@ -233,7 +237,11 @@ static int hci_trans_h4_recv_evt(uint8_t byte)
     
     if (evt->cur == evt->len) {
         hci_trans_h4_pkg_notify(HCI_TRANS_H4_TYPE_EVT, evt->data, evt->len);
+#ifdef HM_CONFIG_BTSTACK
+        /* Transfer the responsibility of free memory to btstack user.*/
+#else
         hci_trans_h4_free(evt->data);
+#endif
         h4_object.rx.state = H4_RECV_STATE_NONE;
     }
 

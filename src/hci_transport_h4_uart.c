@@ -1,7 +1,7 @@
 #include "hm_config.h"
-#include "hci_transport_h4.h"
-#include "hci_transport_h4_uart.h"
-#include "error.h"
+#include "hm_hci_transport_h4.h"
+#include "hm_hci_transport_h4_uart.h"
+#include "hm_error.h"
 #include <rtthread.h>
 #include <rtdevice.h>
 #include <board.h>

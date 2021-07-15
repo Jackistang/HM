@@ -1,8 +1,8 @@
 #ifndef HM_TRANS_H4_H
 #define HM_TRANS_H4_H
 
-#include "error.h"
-#include "hci_transport_h4_uart.h"
+#include "hm_error.h"
+#include "hm_hci_transport_h4_uart.h"
 #include <stdint.h>
 #include <stddef.h>
 
