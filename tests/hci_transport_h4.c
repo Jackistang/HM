@@ -5,9 +5,9 @@
 
 static struct rt_semaphore sync_sem;
 
-struct hci_trans_h4_config h4_config = {
+static struct hci_trans_h4_config h4_config = {
     .uart_config = {
-        .device_name = "uart1",
+        .device_name = "uart3",
         .databit     = DATA_BITS_8,
         .stopbit     = STOP_BITS_1,
         .parity      = PARITY_NONE,
@@ -126,16 +126,16 @@ hci_trans_h4_send_test_t test_send_table[] = {
 };
 
 /* Mock function */
-RT_WEAK int hci_trans_h4_uart_send(uint8_t *data, uint16_t len)
-{
-    hci_trans_h4_send_test_t *p = &test_send_table[test_send_table_index];
-
-    uassert_not_null(data);
-    uassert_int_equal(len, p->length);
-    uassert_buf_equal(data, p->buf, len);
-
-    return len;
-}
+//RT_WEAK int hci_trans_h4_uart_send(uint8_t *data, uint16_t len)
+//{
+//    hci_trans_h4_send_test_t *p = &test_send_table[test_send_table_index];
+//
+//    uassert_not_null(data);
+//    uassert_int_equal(len, p->length);
+//    uassert_buf_equal(data, p->buf, len);
+//
+//    return len;
+//}
 
 #define SEND_MOCK_TEST(n) do {    \
     test_send_table_index = n; \
@@ -203,7 +203,7 @@ static uint8_t h4_recv1[] = { 0x0E, 0x04, 0x01, 0x03, 0x0C, 0x00 };
     \
     err = hci_trans_h4_send(h4_send_object.send_pkg_type, p);   \
     uassert_int_equal(err, HM_SUCCESS); \
-    err = rt_sem_take(&sync_sem, 10);   \
+    err = rt_sem_take(&sync_sem, 100);   \
     uassert_int_equal(err, RT_EOK); \
     \
     hci_trans_h4_send_free(p);  \

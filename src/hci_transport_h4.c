@@ -1,4 +1,6 @@
 #include <rtthread.h>
+#include <rtdevice.h>
+#include <board.h>
 #include "hm_hci_transport_h4.h"
 #include "hm_hci_transport_h4_uart.h"
 
@@ -104,6 +106,15 @@ int hci_trans_h4_open(void)
     if ((err = hci_trans_h4_uart_open()))
         return err;
 
+    /* For test */
+#define BT_AP6212_PIN GET_PIN(I, 11)
+    rt_pin_mode(BT_AP6212_PIN, PIN_MODE_OUTPUT);
+
+    rt_pin_write(BT_AP6212_PIN, PIN_LOW);
+    HAL_Delay(1000);
+    rt_pin_write(BT_AP6212_PIN, PIN_HIGH);
+    HAL_Delay(1000);
+
     return HM_SUCCESS;
 }
 
@@ -123,7 +134,7 @@ int hci_trans_h4_register_callback(hci_trans_h4_package_callback_t callback)
     package_callback_t *pkg_callback;
     rt_list_for_each_entry(pkg_callback, &h4_object.callback_list, list) {
         if (pkg_callback->cb == callback)   /* This callback function has been registered. */
-            return ;
+            return HM_SUCCESS;
     }
 
     pkg_callback = rt_malloc(sizeof(package_callback_t));

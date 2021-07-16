@@ -33,6 +33,12 @@ void hci_trans_h4_uart_init(struct hci_trans_h4_uart_config *config)
     uart_config.rt_config.data_bits = config->databit;
     uart_config.rt_config.stop_bits = config->stopbit;
     uart_config.rt_config.parity    = config->parity;
+
+    /* PD11 - CTS, PD12 - RTS */
+    rt_pin_mode(59, PIN_MODE_OUTPUT);
+    rt_pin_mode(60, PIN_MODE_OUTPUT);
+    rt_pin_write(59, PIN_HIGH);
+    rt_pin_write(60, PIN_HIGH);
 }
 
 static void h4_uart_thread(void *args)
@@ -58,8 +64,16 @@ int hci_trans_h4_uart_open(void)
     h4_uart = rt_device_find(uart_config.name);
     RT_ASSERT(h4_uart);
 
-    rt_device_open(h4_uart, RT_DEVICE_FLAG_DMA_RX);
-    rt_device_control(h4_uart, RT_DEVICE_CTRL_CONFIG, &uart_config.rt_config);
+    rt_err_t err;
+
+    if ((err = rt_device_open(h4_uart, RT_DEVICE_FLAG_INT_RX))) {
+        rt_kprintf("Open h4_uart error\n");
+        return HM_NOT_OPEN;
+    }
+    if ((err = rt_device_control(h4_uart, RT_DEVICE_CTRL_CONFIG, &uart_config.rt_config))) {
+        rt_kprintf("Control h4_uart error\n");
+        return HM_NOT_OPEN;
+    }
 
     h4_uart_tid = rt_thread_create("h4.uart", h4_uart_thread, RT_NULL, 
                         H4_UART_STACK_SIZE, H4_UART_PRIORITY, H4_UART_TICKS);
