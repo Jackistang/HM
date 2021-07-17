@@ -75,6 +75,8 @@ int hci_trans_h4_uart_open(void)
         return HM_NOT_OPEN;
     }
 
+    rt_thread_mdelay(100);
+
     h4_uart_tid = rt_thread_create("h4.uart", h4_uart_thread, RT_NULL, 
                         H4_UART_STACK_SIZE, H4_UART_PRIORITY, H4_UART_TICKS);
     if (h4_uart_tid == RT_NULL)

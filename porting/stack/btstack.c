@@ -3,8 +3,10 @@
 #include "hm_hci_transport_h4_uart.h"
 #include "btstack_debug.h"
 #include "btstack_config.h"
+#include "hci.h"
 
 #include <rtthread.h>
+#include <rtdevice.h>
 
 #define DATA_SOURCE_CALLBACK_READ   (1 << 0)
 
@@ -17,21 +19,40 @@ static struct hci_trans_h4_config h4_config = {
         .baudrate    = BAUD_RATE_115200,
         .flowcontrol = 1,
     },
-}
+};
 
-typedef struct btstack_port_sync_read {
+typedef struct btstack_port_async_read {
+    uint8_t pkg_type;
     uint8_t *pkg;   /* package pointer */
     uint16_t size;  /* package size */
-} btstack_port_sync_read_t;
+} btstack_port_async_read_t;
 
-static void (*packet_handler)(uint8_t packet_type, uint8_t *packet, uint16_t size)
+static void (*packet_handler)(uint8_t packet_type, uint8_t *packet, uint16_t size);
 
 /* No effect if port doensn't have file descriptors */
 static int fd = 10;
 static btstack_data_source_t btstack_port_data_source;
 
-static void btstack_port_process_read(btstack_data_source_t *ds) {
+/* Used for async read in two thread. */
+static rt_mailbox_t async_read_mb;
+static rt_mp_t async_read_pool;
 
+static void btstack_port_process_read(btstack_data_source_t *ds)
+{
+    btstack_port_async_read_t *async_read = NULL;
+
+    rt_err_t err = rt_mb_recv(async_read_mb, (rt_ubase_t *)&async_read, RT_WAITING_NO);
+    
+    /* No data to read. */
+    if (err != RT_EOK)
+        return ;
+
+    RT_ASSERT(async_read);
+
+    packet_handler(async_read->pkg_type, async_read->pkg, async_read->size);
+
+    rt_mp_free(async_read->pkg);
+    rt_mp_free(async_read);
 }
 
 static void btstack_port_process(btstack_data_source_t *ds, btstack_data_source_callback_type_t callback_type) 
@@ -47,12 +68,18 @@ static void btstack_port_process(btstack_data_source_t *ds, btstack_data_source_
 }
 
 /* This function is in another thread. */
-void hm_hci_trans_h4_package_callback(uint8_t pkg_type, uint8_t *pkg, uint16_t size)
+static void hm_hci_trans_h4_package_callback(uint8_t pkg_type, uint8_t *pkg, uint16_t size)
 {
-    // btstack_port_sync_read_t *sync_read = rt_malloc(btstack_port_sync_read_t);
-    // RT_ASSERT(sync_read);
+    btstack_port_async_read_t *async_read = (btstack_port_async_read_t *)rt_mp_alloc(async_read_pool, RT_WAITING_NO);
+    RT_ASSERT(async_read);
 
-    //TODO Add mailbox implement.
+    /* The user is responsibility for free the `pkg` memory with `rt_mp_free` */
+    async_read->pkg_type = pkg_type;
+    async_read->pkg = pkg;
+    async_read->size = size;
+
+    rt_err_t err = rt_mb_send(async_read_mb, (rt_ubase_t)async_read);
+    RT_ASSERT(err == RT_EOK);
 }
 
 static void hci_transport_h4_init(const void *transport_config)
@@ -71,10 +98,14 @@ static void hci_transport_h4_init(const void *transport_config)
     hci_transport_config_uart_t * hci_transport_config_uart = (hci_transport_config_uart_t*) transport_config;
     h4_config.uart_config.baudrate    = hci_transport_config_uart->baudrate_init;
     h4_config.uart_config.flowcontrol = hci_transport_config_uart->flowcontrol;
-    h4_config.uart_config.parity      = hci_transport_config_uart->parity;
     h4_config.uart_config.device_name = hci_transport_config_uart->device_name;
 
     hci_trans_h4_init(&h4_config);
+
+    async_read_pool = rt_mp_create("async read pool", 5, sizeof(btstack_port_async_read_t));
+    async_read_mb = rt_mb_create("async read mailbox", 5, RT_IPC_FLAG_PRIO);
+    RT_ASSERT(async_read_mb);
+    RT_ASSERT(async_read_pool);
 
     hci_trans_h4_register_callback(hm_hci_trans_h4_package_callback);
 }
@@ -135,7 +166,7 @@ static int hci_transport_h4_send_packet(uint8_t packet_type, uint8_t *packet, in
     packet_handler(HCI_EVENT_PACKET, (uint8_t *) &packet_sent_event[0], sizeof(packet_sent_event));
 
     // Enable run loop for receive data.
-    btstack_run_loop_enable_data_source_callbacks(&transport_data_source, DATA_SOURCE_CALLBACK_READ);
+    btstack_run_loop_enable_data_source_callbacks(&btstack_port_data_source, DATA_SOURCE_CALLBACK_READ);
 
     return err;
 }
@@ -160,3 +191,8 @@ static const hci_transport_t hci_transport_h4 = {
         /* void   (*reset_link)(void); */                               NULL,
         /* void   (*set_sco_config)(uint16_t voice_setting, int num_connections); */ NULL,
 };
+
+const hci_transport_t * hci_transport_h4_instance(const btstack_uart_block_t * uart_driver)
+{
+    return &hci_transport_h4;
+}

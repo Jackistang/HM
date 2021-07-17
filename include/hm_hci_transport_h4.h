@@ -16,6 +16,12 @@ extern "C" {
 #define HCI_TRANS_H4_TYPE_EVT   (0x04)
 #define HCI_TRANS_H4_TYPE_ISO   (0x05)
 
+/**
+ * @param n             The count for the block.
+ * @param block_size    One block size in memory pool.
+*/
+#define MEMPOOL_SIZE(n, block_size) (RT_ALIGN(((block_size) + 4), RT_ALIGN_SIZE) * (n))
+
 
 struct hm_hci_cmd {
     uint16_t opcode;

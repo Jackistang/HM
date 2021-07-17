@@ -7,7 +7,7 @@ static struct rt_semaphore sync_sem;
 
 static struct hci_trans_h4_config h4_config = {
     .uart_config = {
-        .device_name = "uart3",
+        .device_name = "uart1",
         .databit     = DATA_BITS_8,
         .stopbit     = STOP_BITS_1,
         .parity      = PARITY_NONE,
@@ -21,6 +21,8 @@ static rt_err_t utest_tc_init(void)
     rt_sem_init(&sync_sem, "sync_sem", 0, RT_IPC_FLAG_PRIO);
     hci_trans_h4_init(&h4_config);
 
+    hci_trans_h4_open();
+
     return RT_EOK;
 }
 
@@ -28,6 +30,8 @@ static rt_err_t utest_tc_cleanup(void)
 {
     rt_sem_detach(&sync_sem);
     
+    hci_trans_h4_close();
+
     return RT_EOK;
 }
 
@@ -203,7 +207,7 @@ static uint8_t h4_recv1[] = { 0x0E, 0x04, 0x01, 0x03, 0x0C, 0x00 };
     \
     err = hci_trans_h4_send(h4_send_object.send_pkg_type, p);   \
     uassert_int_equal(err, HM_SUCCESS); \
-    err = rt_sem_take(&sync_sem, 100);   \
+    err = rt_sem_take(&sync_sem, 1000);   \
     uassert_int_equal(err, RT_EOK); \
     \
     hci_trans_h4_send_free(p);  \
@@ -223,7 +227,7 @@ static void test_hci_trans_h4_send(void)
 {
     int err;
     uint8_t *p = NULL;
-    hci_trans_h4_open();
+//    hci_trans_h4_open();
     hci_trans_h4_register_callback(test_hci_trans_h4_send_callback);
 
 /*     h4_send_object.send_pkg_type = HCI_TRANS_H4_TYPE_CMD;
@@ -248,7 +252,7 @@ static void test_hci_trans_h4_send(void)
     SEND_TEST(HCI_TRANS_H4_TYPE_CMD, HCI_TRANS_H4_TYPE_EVT, 1);
 
     hci_trans_h4_remove_callback(test_hci_trans_h4_send_callback);
-    hci_trans_h4_close();
+//    hci_trans_h4_close();
 }
 
 static uint16_t test_hci_trans_h4_callback_count = 0;
@@ -310,19 +314,19 @@ static void test_hci_cmd_send_sync_h4_callback(uint8_t package_type, uint8_t *pa
 static void test_hci_cmd_send_sync(void)
 {
     int err;
-    hci_trans_h4_open();
+//    hci_trans_h4_open();
     hci_trans_h4_register_callback(test_hci_cmd_send_sync_h4_callback);
 
-    err = hci_cmd_send_sync(hci_cmd_send1, ARRAY_SIZE(hci_cmd_send1), 100, NULL);
+    err = hci_cmd_send_sync(hci_cmd_send1, ARRAY_SIZE(hci_cmd_send1), 1000, NULL);
     uassert_int_equal(err, HM_SUCCESS);
     uassert_int_equal(test_hci_cmd_send_sync_count, 0);
 
-    err = hci_cmd_send_sync(hci_cmd_send1, ARRAY_SIZE(hci_cmd_send1), 100, hci_cmd_send_sync_callback);
+    err = hci_cmd_send_sync(hci_cmd_send1, ARRAY_SIZE(hci_cmd_send1), 1000, hci_cmd_send_sync_callback);
     uassert_int_equal(err, HM_SUCCESS);
     uassert_int_equal(test_hci_cmd_send_sync_count, 0);
 
     hci_trans_h4_remove_callback(test_hci_cmd_send_sync_h4_callback);
-    hci_trans_h4_close();
+//    hci_trans_h4_close();
 }
 
 static void testcase(void)

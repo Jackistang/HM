@@ -18,12 +18,6 @@ typedef enum {
 #define HCI_EVENT_BUF_SIZE   RT_ALIGN(70,  RT_ALIGN_SIZE)
 #define HCI_ACL_BUF_SIZE     RT_ALIGN(255, RT_ALIGN_SIZE)
 
-/**
- * @param n             The count for the block.
- * @param block_size    One block size in memory pool.
-*/
-#define MEMPOOL_SIZE(n, block_size) (RT_ALIGN(((block_size) + 4), RT_ALIGN_SIZE) * (n))
-
 struct h4_rx_evt {
     uint8_t *data;
     uint16_t cur;
@@ -106,7 +100,7 @@ int hci_trans_h4_open(void)
     if ((err = hci_trans_h4_uart_open()))
         return err;
 
-    /* For test */
+    /* For test */  //TODO
 #define BT_AP6212_PIN GET_PIN(I, 11)
     rt_pin_mode(BT_AP6212_PIN, PIN_MODE_OUTPUT);
 
