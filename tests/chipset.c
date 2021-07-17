@@ -29,8 +29,18 @@ static rt_err_t utest_tc_cleanup(void)
 void test_csr8311_init(void)
 {
     int err;
-    err = chipset_instance->init();
-    uassert_int_equal(err, HM_SUCCESS);
+
+    hci_reset_cmd_send();
+    rt_thread_mdelay(100);
+
+    hci_reset_cmd_send();
+    rt_thread_mdelay(100);
+
+    hci_reset_cmd_send();
+    rt_thread_mdelay(100);
+
+   err = chipset_instance->init();
+   uassert_int_equal(err, HM_SUCCESS);
 }
 
 static void testcase_chipset(void)
