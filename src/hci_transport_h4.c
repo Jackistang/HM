@@ -47,8 +47,7 @@ typedef struct package_callback {
 } package_callback_t;
 
 typedef struct hci_send_sync_object {
-    int cc_evt; /* Receive command complete event or not. */
-    hci_cmd_send_sync_callback_t cb;
+    hci_vendor_evt_callback_t cb;
     struct rt_semaphore sync_sem;
 } hci_send_sync_object_t;
 
@@ -158,12 +157,9 @@ static void hci_trans_h4_pkg_notify(uint8_t type, uint8_t *pkg, uint16_t len)
         and don't call other registered callback. */
     if (h4_object.send_sync_object.cb) {
         RT_ASSERT(type == HCI_TRANS_H4_TYPE_EVT);
+
         h4_object.send_sync_object.cb(pkg, len);
 
-        /* Command Complete event */
-        if (pkg[0] == 0x0E) {
-            h4_object.send_sync_object.cc_evt = 1;
-        }
         rt_sem_release(&h4_object.send_sync_object.sync_sem);
         return ;
     }
@@ -381,7 +377,7 @@ static void hci_cmd_send_sync_dummy_callback(uint8_t *hci_evt, uint16_t len)
     return ;
 }
 
-int hci_cmd_send_sync(uint8_t *hci_cmd, uint16_t len, int32_t time, hci_cmd_send_sync_callback_t callback)
+int hci_vendor_cmd_send_sync(uint8_t *hci_cmd, uint16_t len, int32_t time, hci_vendor_evt_callback_t callback)
 {
     RT_ASSERT(hci_cmd);
     RT_ASSERT(len > 0);
@@ -407,13 +403,6 @@ int hci_cmd_send_sync(uint8_t *hci_cmd, uint16_t len, int32_t time, hci_cmd_send
     if (err) {
         rt_kprintf("HCI command send sync timeout.\n");
         goto err_timeout;
-    }
-
-    if (h4_object.send_sync_object.cc_evt) {
-        err = HM_SUCCESS;
-        h4_object.send_sync_object.cc_evt = 0;
-    } else {
-        err = HM_HCI_CMD_ERROR;
     }
 
 err_timeout:

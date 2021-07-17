@@ -25,7 +25,7 @@ int chipset_csr_init(void)
     while (p < end) {
         len = 3 + p[2];
 
-        int err = hci_cmd_send_sync(download_commands, ARRAY_SIZE(download_commands), 1000, NULL);
+        int err = hci_vendor_cmd_send_sync(p, len, 1000, NULL);
         if (err) {
             rt_kprintf("csr chipset init fail err(%d)\n", err);
             return HM_CHIPSET_INIT_ERROR;

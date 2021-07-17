@@ -119,8 +119,9 @@ extern void hci_trans_h4_send_free(uint8_t *buf);
  */
 extern int hci_trans_h4_send(uint8_t type, uint8_t *data);
 
-typedef void (*hci_cmd_send_sync_callback_t)(uint8_t *hci_evt, uint16_t len);
-extern int hci_cmd_send_sync(uint8_t *hci_cmd, uint16_t len, int32_t time, hci_cmd_send_sync_callback_t callback);
+typedef void (*hci_vendor_evt_callback_t)(uint8_t *hci_evt, uint16_t len);
+
+extern int hci_vendor_cmd_send_sync(uint8_t *hci_cmd, uint16_t len, int32_t time, hci_vendor_evt_callback_t callback);
 
 #ifdef __cplusplus
 }

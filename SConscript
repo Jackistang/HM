@@ -8,18 +8,19 @@ src = Split('''
 ''')
 
 # For stack choice
-src += [
-	'porting/stack/btstack.c'
-]
+# src += [
+# 	'porting/stack/btstack.c'
+# ]
 
 # For chipset choice
 src += [
-    'porting/chipset/CSR8311.c'
+    'porting/chipset/csr8311.c'
 ]
 
 # For test
 src += [
-    'tests/hci_transport_h4.c'
+    'tests/hci_transport_h4.c',
+    'tests/chipset.c'
 ]
 
 CPPPATH = [cwd + '/include']
