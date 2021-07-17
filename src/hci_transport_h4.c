@@ -15,8 +15,8 @@ typedef enum {
 } h4_recv_state_t;
 
 
-#define HCI_COMMAND_BUF_SIZE RT_ALIGN(260, RT_ALIGN_SIZE) 
-#define HCI_EVENT_BUF_SIZE   RT_ALIGN(70,  RT_ALIGN_SIZE)
+#define HCI_COMMAND_BUF_SIZE RT_ALIGN(255, RT_ALIGN_SIZE) 
+#define HCI_EVENT_BUF_SIZE   RT_ALIGN(255,  RT_ALIGN_SIZE)
 #define HCI_ACL_BUF_SIZE     RT_ALIGN(255, RT_ALIGN_SIZE)
 
 struct h4_rx_evt {
@@ -88,12 +88,6 @@ void hci_trans_h4_init(struct hci_trans_h4_config *config)
 
     hci_trans_h4_uart_init(&config->uart_config);
 
-    h4_object.send_sync_object.sync_cmd = 0;
-    h4_object.send_sync_object.cb = NULL;
-    rt_sem_init(&h4_object.send_sync_object.sync_sem, "send sync sem", 0, RT_IPC_FLAG_PRIO);
-
-    rt_list_init(&h4_object.callback_list);
-
     rt_kprintf("hci transport h4 init success.\n");
 }
 
@@ -102,8 +96,15 @@ int hci_trans_h4_open(void)
     int err;
     h4_object.rx.state = H4_RECV_STATE_NONE;
 
+    rt_sem_init(&h4_object.send_sync_object.sync_sem, "send sync sem", 0, RT_IPC_FLAG_PRIO);
+
     if ((err = hci_trans_h4_uart_open()))
         return err;
+
+    h4_object.send_sync_object.sync_cmd = 0;
+    h4_object.send_sync_object.cb = NULL;
+
+    rt_list_init(&h4_object.callback_list);
 
     rt_kprintf("hci transport h4 open success.\n");
 
@@ -114,6 +115,8 @@ int hci_trans_h4_close(void)
 {
     int err;
     h4_object.rx.state = H4_RECV_STATE_NONE;
+
+    rt_sem_detach(&h4_object.send_sync_object.sync_sem);
 
     if ((err = hci_trans_h4_uart_close()))
         return err;
@@ -230,8 +233,9 @@ static int hci_trans_h4_recv_acl(uint8_t byte)
 #if HM_CONFIG_BTSTACK
         /* Transfer the responsibility of free memory to btstack user.*/
 #else
-        rt_memset(acl->data, 0, acl->len);
         hci_trans_h4_free(acl->data);
+        acl->data = NULL;
+        acl->cur = acl->len = 0;
 #endif
         h4_object.rx.state = H4_RECV_STATE_NONE;
     }
@@ -262,8 +266,9 @@ static int hci_trans_h4_recv_evt(uint8_t byte)
 #if HM_CONFIG_BTSTACK
         /* Transfer the responsibility of free memory to btstack user.*/
 #else
-        rt_memset(evt->data, 0, evt->len);
         hci_trans_h4_free(evt->data);
+        evt->data = NULL;
+        evt->cur = evt->len = 0;
 #endif
         h4_object.rx.state = H4_RECV_STATE_NONE;
     }
@@ -444,7 +449,11 @@ int hci_cmd_send_sync(uint8_t *hci_cmd, uint16_t len, int32_t time)
 
     h4_object.send_sync_object.sync_cmd = 1;
 
-    hci_cmd_send_sync_inline(hci_cmd, len, time);
+    int err;
+
+    err = hci_cmd_send_sync_inline(hci_cmd, len, time);
+    if (err) 
+        return err;
 
     if (!h4_object.send_sync_object.cc_evt)
         return HM_HCI_CMD_ERROR;
@@ -453,8 +462,8 @@ int hci_cmd_send_sync(uint8_t *hci_cmd, uint16_t len, int32_t time)
     return HM_SUCCESS;
 }
 
-static uint8_t reset_cmd[] = {0x03, 0x0C, 0x00};
+static uint8_t reset_cmd[] = {0x01, 0x03, 0x0C, 0x00};
 int hci_reset_cmd_send(void)
 {
-    return hci_cmd_send_sync(reset_cmd, ARRAY_SIZE(reset_cmd), 1000);
+    return hci_trans_h4_uart_send(reset_cmd, ARRAY_SIZE(reset_cmd));
 }

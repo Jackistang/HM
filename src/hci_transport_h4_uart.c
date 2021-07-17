@@ -45,11 +45,13 @@ static void h4_uart_thread(void *args)
 {
     uint8_t buf[32];
     uint16_t read = 0;
+    int err;
 
     while (1) {
         read = rt_device_read(h4_uart, 0, buf, ARRAY_SIZE(buf));
         for (uint16_t i = 0; i < read; i++) {
-            hci_trans_h4_recv_byte(buf[i]);
+            err = hci_trans_h4_recv_byte(buf[i]);
+            RT_ASSERT(err == HM_SUCCESS);
         }
 
         rt_thread_mdelay(1);
