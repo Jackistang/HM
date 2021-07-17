@@ -1,8 +1,14 @@
 #include "hm_chipset.h"
 #include "hm_hci_transport_h4.h"
+#include "hm_config.h"
 #include <stdio.h>
 #include <unistd.h>
 #include <rtthread.h>
+
+#if HM_CONFIG_BTSTACK
+#include "bluetooth.h"
+#include "hci_dump.h"
+#endif
 
 #define BCM_PATH_NAME    "/dev/bt_image"
 #define HCI_COMMAND_HEADER  3
@@ -13,9 +19,20 @@ static uint8_t download_commands[] = {
 
 static struct rt_semaphore sync_sem;
 
+static void hci_vendor_evt_callback(uint8_t *hci_evt, uint16_t len)
+{
+#if HM_CONFIG_BTSTACK
+    hci_dump_packet(HCI_EVENT_PACKET, 1, hci_evt, len);
+#endif
+}
+
 static void hci_trans_h4_package_callback(uint8_t pkg_type, uint8_t *pkg, uint16_t size)
 {
     RT_ASSERT(pkg_type == HCI_TRANS_H4_TYPE_EVT);
+
+#if HM_CONFIG_BTSTACK
+    hci_dump_packet(HCI_EVENT_PACKET, 1, pkg, size);
+#endif
 
     rt_sem_release(&sync_sem);
 }
@@ -33,7 +50,11 @@ int chipset_bcm_init(void)
         goto err_open;
     }
 
-    err = hci_vendor_cmd_send_sync(download_commands, ARRAY_SIZE(download_commands), 1000, NULL);
+#if HM_CONFIG_BTSTACK
+    hci_dump_packet(HCI_COMMAND_DATA_PACKET, 0, download_commands, ARRAY_SIZE(download_commands));
+#endif
+    
+    err = hci_vendor_cmd_send_sync(download_commands, ARRAY_SIZE(download_commands), 1000, hci_vendor_evt_callback);
     if (err) {
         rt_kprintf("bcm chipset init fail err(%d)\n", err);
         err = HM_CHIPSET_INIT_ERROR;

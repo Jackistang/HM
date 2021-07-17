@@ -8,16 +8,16 @@
 #include <rtthread.h>
 #include <rtdevice.h>
 
-#define DATA_SOURCE_CALLBACK_READ   (1 << 0)
+// #define DATA_SOURCE_CALLBACK_READ   (1 << 1)
 
 static struct hci_trans_h4_config h4_config = {
     .uart_config = {
-        .device_name = "uart1",
+        .device_name = "uart3",             /* Default value */
         .databit     = DATA_BITS_8,
         .stopbit     = STOP_BITS_1,
         .parity      = PARITY_NONE,
-        .baudrate    = BAUD_RATE_115200,
-        .flowcontrol = 1,
+        .baudrate    = BAUD_RATE_115200,    /* Default value */
+        .flowcontrol = 1,                   /* Default value */
     },
 };
 
@@ -37,7 +37,7 @@ static btstack_data_source_t btstack_port_data_source;
 static rt_mailbox_t async_read_mb;
 static rt_mp_t async_read_pool;
 
-static void btstack_port_process_read(btstack_data_source_t *ds)
+static void btstack_port_process_poll(btstack_data_source_t *ds)
 {
     btstack_port_async_read_t *async_read = NULL;
 
@@ -51,16 +51,19 @@ static void btstack_port_process_read(btstack_data_source_t *ds)
 
     packet_handler(async_read->pkg_type, async_read->pkg, async_read->size);
 
+    rt_memset(async_read->pkg, 0, async_read->size);
     rt_mp_free(async_read->pkg);
     rt_mp_free(async_read);
+
+    btstack_run_loop_disable_data_source_callbacks(&btstack_port_data_source, DATA_SOURCE_CALLBACK_POLL);
 }
 
 static void btstack_port_process(btstack_data_source_t *ds, btstack_data_source_callback_type_t callback_type) 
 {
     if (ds->source.fd < 0) return;
     switch (callback_type){
-    case DATA_SOURCE_CALLBACK_READ:
-        btstack_port_process_read(ds);
+    case DATA_SOURCE_CALLBACK_POLL:
+        btstack_port_process_poll(ds);
         break;
     default:
         break;
@@ -106,8 +109,6 @@ static void hci_transport_h4_init(const void *transport_config)
     async_read_mb = rt_mb_create("async read mailbox", 5, RT_IPC_FLAG_PRIO);
     RT_ASSERT(async_read_mb);
     RT_ASSERT(async_read_pool);
-
-    hci_trans_h4_register_callback(hm_hci_trans_h4_package_callback);
 }
 
 static int hci_transport_h4_open(void)
@@ -117,6 +118,8 @@ static int hci_transport_h4_open(void)
         log_error("hci_transport_h4_open error");
         return -1;
     }
+
+    hci_trans_h4_register_callback(hm_hci_trans_h4_package_callback);
 
     // set up data_source
     btstack_run_loop_set_data_source_fd(&btstack_port_data_source, fd);
@@ -133,6 +136,8 @@ static int hci_transport_h4_close(void)
         log_error("hci_transport_h4_close error");
         return -1;
     }
+
+    hci_trans_h4_remove_callback(hm_hci_trans_h4_package_callback);
 
     // first remove run loop handler
     btstack_run_loop_remove_data_source(&btstack_port_data_source);
@@ -159,6 +164,9 @@ static int hci_transport_h4_send_packet(uint8_t packet_type, uint8_t *packet, in
     packet--;
     *packet = packet_type;
 
+    if (packet[1] == 0x01 && packet[2] == 0x10)
+        rt_thread_mdelay(100);
+
     int err = hci_trans_h4_uart_send(packet, size);
 
     // Notify btstack to release packet buffer.
@@ -166,7 +174,7 @@ static int hci_transport_h4_send_packet(uint8_t packet_type, uint8_t *packet, in
     packet_handler(HCI_EVENT_PACKET, (uint8_t *) &packet_sent_event[0], sizeof(packet_sent_event));
 
     // Enable run loop for receive data.
-    btstack_run_loop_enable_data_source_callbacks(&btstack_port_data_source, DATA_SOURCE_CALLBACK_READ);
+    btstack_run_loop_enable_data_source_callbacks(&btstack_port_data_source, DATA_SOURCE_CALLBACK_POLL);
 
     return err;
 }
@@ -195,4 +203,45 @@ static const hci_transport_t hci_transport_h4 = {
 const hci_transport_t * hci_transport_h4_instance(const btstack_uart_block_t * uart_driver)
 {
     return &hci_transport_h4;
+}
+
+static void chipset_init(const void * config)
+{
+    return ;
+}
+
+static btstack_chipset_result_t chipset_next_command(uint8_t * hci_cmd_buffer)
+{
+    hm_chipset_t *chipset_instance = hm_chipset_get_instance();
+
+    if (!chipset_instance->init) {
+        return BTSTACK_CHIPSET_NO_INIT_SCRIPT;
+    }
+
+    /* Temporary remove callback in chipset init.*/
+    hci_trans_h4_remove_callback(hm_hci_trans_h4_package_callback);
+
+    int err = chipset_instance->init();
+
+    /* Restore callback after chipset init.*/
+    hci_trans_h4_register_callback(hm_hci_trans_h4_package_callback);
+
+    if (err) {
+        return BTSTACK_CHIPSET_NO_INIT_SCRIPT;
+    }
+
+    log_info("Chipset init success");
+
+    return BTSTACK_CHIPSET_DONE;
+}
+
+static btstack_chipset_t btstack_chipset_hm = {
+    .name = "hm",
+    .init = chipset_init,
+    .next_command = chipset_next_command,
+};
+
+// MARK: public API
+const btstack_chipset_t * btstack_chipset_hm_instance(void){
+    return &btstack_chipset_hm;
 }

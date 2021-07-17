@@ -1,6 +1,7 @@
 #include <rtthread.h>
 #include <rtdevice.h>
 #include <board.h>
+#include "hm_config.h"
 #include "hm_hci_transport_h4.h"
 #include "hm_hci_transport_h4_uart.h"
 
@@ -73,7 +74,7 @@ static uint8_t cmd_pool_buf[MEMPOOL_SIZE(1, HCI_COMMAND_BUF_SIZE)];
 
 static struct rt_mempool evt_pool;
 ALIGN(RT_ALIGN_SIZE)
-static uint8_t evt_pool_buf[MEMPOOL_SIZE(1, HCI_EVENT_BUF_SIZE)];
+static uint8_t evt_pool_buf[MEMPOOL_SIZE(2, HCI_EVENT_BUF_SIZE)];
 
 static struct rt_mempool acl_pool;
 ALIGN(RT_ALIGN_SIZE)
@@ -92,6 +93,8 @@ void hci_trans_h4_init(struct hci_trans_h4_config *config)
     rt_sem_init(&h4_object.send_sync_object.sync_sem, "send sync sem", 0, RT_IPC_FLAG_PRIO);
 
     rt_list_init(&h4_object.callback_list);
+
+    rt_kprintf("hci transport h4 init success.\n");
 }
 
 int hci_trans_h4_open(void)
@@ -102,14 +105,7 @@ int hci_trans_h4_open(void)
     if ((err = hci_trans_h4_uart_open()))
         return err;
 
-    /* For test */  //TODO
-#define BT_AP6212_PIN GET_PIN(I, 11)
-    rt_pin_mode(BT_AP6212_PIN, PIN_MODE_OUTPUT);
-
-    rt_pin_write(BT_AP6212_PIN, PIN_LOW);
-    HAL_Delay(1000);
-    rt_pin_write(BT_AP6212_PIN, PIN_HIGH);
-    HAL_Delay(1000);
+    rt_kprintf("hci transport h4 open success.\n");
 
     return HM_SUCCESS;
 }
@@ -121,6 +117,8 @@ int hci_trans_h4_close(void)
 
     if ((err = hci_trans_h4_uart_close()))
         return err;
+
+    rt_kprintf("hci transport h4 close success.\n");
 
     return HM_SUCCESS;
 }
@@ -229,9 +227,10 @@ static int hci_trans_h4_recv_acl(uint8_t byte)
 
     if (acl->cur == acl->len) {
         hci_trans_h4_pkg_notify(HCI_TRANS_H4_TYPE_ACL, acl->data, acl->len);
-#ifdef HM_CONFIG_BTSTACK
+#if HM_CONFIG_BTSTACK
         /* Transfer the responsibility of free memory to btstack user.*/
 #else
+        rt_memset(acl->data, 0, acl->len);
         hci_trans_h4_free(acl->data);
 #endif
         h4_object.rx.state = H4_RECV_STATE_NONE;
@@ -260,9 +259,10 @@ static int hci_trans_h4_recv_evt(uint8_t byte)
     
     if (evt->cur == evt->len) {
         hci_trans_h4_pkg_notify(HCI_TRANS_H4_TYPE_EVT, evt->data, evt->len);
-#ifdef HM_CONFIG_BTSTACK
+#if HM_CONFIG_BTSTACK
         /* Transfer the responsibility of free memory to btstack user.*/
 #else
+        rt_memset(evt->data, 0, evt->len);
         hci_trans_h4_free(evt->data);
 #endif
         h4_object.rx.state = H4_RECV_STATE_NONE;
