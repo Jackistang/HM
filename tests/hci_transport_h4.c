@@ -292,6 +292,8 @@ static void hci_vendor_evt_callback(uint8_t *hci_evt, uint16_t len)
 {
     uassert_int_equal(len, ARRAY_SIZE(hci_evt_recv1));
     uassert_buf_equal(hci_evt, hci_evt_recv1, len);
+
+    test_hci_cmd_send_sync_count += 2;
 }
 
 static void test_hci_cmd_send_sync_h4_callback(uint8_t package_type, uint8_t *package, uint16_t size)
@@ -311,7 +313,13 @@ static void test_hci_cmd_send_sync(void)
 
     err = hci_vendor_cmd_send_sync(hci_cmd_send1, ARRAY_SIZE(hci_cmd_send1), 1000, hci_vendor_evt_callback);
     uassert_int_equal(err, HM_SUCCESS);
-    uassert_int_equal(test_hci_cmd_send_sync_count, 0);
+    uassert_int_equal(test_hci_cmd_send_sync_count, 2);
+
+    err = hci_cmd_send_sync(hci_cmd_send1, ARRAY_SIZE(hci_cmd_send1), 1000);
+    uassert_int_equal(err, HM_SUCCESS);
+
+    err = hci_reset_cmd_send();
+    uassert_int_equal(err, HM_SUCCESS);
 
     hci_trans_h4_remove_callback(test_hci_cmd_send_sync_h4_callback);
 //    hci_trans_h4_close();

@@ -123,6 +123,10 @@ typedef void (*hci_vendor_evt_callback_t)(uint8_t *hci_evt, uint16_t len);
 
 extern int hci_vendor_cmd_send_sync(uint8_t *hci_cmd, uint16_t len, int32_t time, hci_vendor_evt_callback_t callback);
 
+extern int hci_cmd_send_sync(uint8_t *hci_cmd, uint16_t len, int32_t time);
+
+extern int hci_reset_cmd_send(void);
+
 #ifdef __cplusplus
 }
 #endif

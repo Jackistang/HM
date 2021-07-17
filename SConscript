@@ -14,7 +14,7 @@ src = Split('''
 
 # For chipset choice
 src += [
-    'porting/chipset/bcm.c'
+    'porting/chipset/csr8311.c'
 ]
 
 # For test

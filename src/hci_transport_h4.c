@@ -47,8 +47,10 @@ typedef struct package_callback {
 } package_callback_t;
 
 typedef struct hci_send_sync_object {
+    uint8_t sync_cmd;
     hci_vendor_evt_callback_t cb;
     struct rt_semaphore sync_sem;
+    uint8_t cc_evt;
 } hci_send_sync_object_t;
 
 struct h4_object {
@@ -85,6 +87,7 @@ void hci_trans_h4_init(struct hci_trans_h4_config *config)
 
     hci_trans_h4_uart_init(&config->uart_config);
 
+    h4_object.send_sync_object.sync_cmd = 0;
     h4_object.send_sync_object.cb = NULL;
     rt_sem_init(&h4_object.send_sync_object.sync_sem, "send sync sem", 0, RT_IPC_FLAG_PRIO);
 
@@ -151,16 +154,29 @@ void hci_trans_h4_remove_callback(hci_trans_h4_package_callback_t callback)
     rt_free(pkg_callback);
 }
 
-static void hci_trans_h4_pkg_notify(uint8_t type, uint8_t *pkg, uint16_t len)
+static void process_sync_cmd_event(uint8_t type, uint8_t *pkg, uint16_t len)
 {
-    /* hci_cmd_send_sync() function will set this, used for sync callback, 
+    RT_ASSERT(type == HCI_TRANS_H4_TYPE_EVT);
+
+    /* hci_vendor_cmd_send_sync() function will set this, used for sync callback, 
         and don't call other registered callback. */
     if (h4_object.send_sync_object.cb) {
-        RT_ASSERT(type == HCI_TRANS_H4_TYPE_EVT);
-
         h4_object.send_sync_object.cb(pkg, len);
+    } else {
+        /* Check it is Complete event. */
+        if (pkg[0] == 0x0E) {
+            h4_object.send_sync_object.cc_evt = 1;
+        }
+    }
 
-        rt_sem_release(&h4_object.send_sync_object.sync_sem);
+    rt_sem_release(&h4_object.send_sync_object.sync_sem);
+}
+
+static void hci_trans_h4_pkg_notify(uint8_t type, uint8_t *pkg, uint16_t len)
+{
+    if (h4_object.send_sync_object.sync_cmd) {
+        process_sync_cmd_event(type, pkg, len);
+        h4_object.send_sync_object.sync_cmd = 0;
         return ;
     }
 
@@ -372,6 +388,30 @@ void hci_trans_h4_send_free(uint8_t *buf)
     hci_trans_h4_free(p);
 }
 
+static int hci_cmd_send_sync_inline(uint8_t *hci_cmd, uint16_t len, int32_t time)
+{
+    int err;
+
+    uint8_t *p = hci_trans_h4_send_alloc(HCI_TRANS_H4_TYPE_CMD);
+    if (p == NULL) {
+        err = HM_NO_MEMORY;
+        return err;
+    }
+
+    rt_memcpy(p, hci_cmd, len);
+    hci_trans_h4_send(HCI_TRANS_H4_TYPE_CMD, p);
+
+    err = rt_sem_take(&h4_object.send_sync_object.sync_sem, time);
+    if (err) {
+        rt_kprintf("HCI command send sync timeout.\n");
+        hci_trans_h4_send_free(p);
+        return HM_TIMEOUT;
+    }
+
+    hci_trans_h4_send_free(p);
+    return HM_SUCCESS;
+}
+
 static void hci_cmd_send_sync_dummy_callback(uint8_t *hci_evt, uint16_t len)
 {
     return ;
@@ -382,34 +422,39 @@ int hci_vendor_cmd_send_sync(uint8_t *hci_cmd, uint16_t len, int32_t time, hci_v
     RT_ASSERT(hci_cmd);
     RT_ASSERT(len > 0);
 
-    int err;
+    int err = HM_SUCCESS;
+    h4_object.send_sync_object.sync_cmd = 1;
     
     if (callback == NULL)
         h4_object.send_sync_object.cb = hci_cmd_send_sync_dummy_callback;
     else
         h4_object.send_sync_object.cb = callback;
 
-    uint8_t *p = hci_trans_h4_send_alloc(HCI_TRANS_H4_TYPE_CMD);
-    if (p == NULL) {
-        err = HM_NO_MEMORY;
-        goto err_alloc;
-    }
+    err = hci_cmd_send_sync_inline(hci_cmd, len, time);
 
-    rt_memcpy(p, hci_cmd, len);
-    if ((err = hci_trans_h4_send(HCI_TRANS_H4_TYPE_CMD, p)))
-        goto err_send;
-
-    err = rt_sem_take(&h4_object.send_sync_object.sync_sem, time);
-    if (err) {
-        rt_kprintf("HCI command send sync timeout.\n");
-        goto err_timeout;
-    }
-
-err_timeout:
-err_send:
-    hci_trans_h4_send_free(p);
-err_alloc:
     h4_object.send_sync_object.cb = NULL;
     return err;
 }
 
+/* Should receive complete event. */
+int hci_cmd_send_sync(uint8_t *hci_cmd, uint16_t len, int32_t time)
+{
+    RT_ASSERT(hci_cmd);
+    RT_ASSERT(len > 0);
+
+    h4_object.send_sync_object.sync_cmd = 1;
+
+    hci_cmd_send_sync_inline(hci_cmd, len, time);
+
+    if (!h4_object.send_sync_object.cc_evt)
+        return HM_HCI_CMD_ERROR;
+
+    h4_object.send_sync_object.cc_evt = 0;
+    return HM_SUCCESS;
+}
+
+static uint8_t reset_cmd[] = {0x03, 0x0C, 0x00};
+int hci_reset_cmd_send(void)
+{
+    return hci_cmd_send_sync(reset_cmd, ARRAY_SIZE(reset_cmd), 1000);
+}

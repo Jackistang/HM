@@ -14,6 +14,7 @@ extern "C" {
 #define HM_CHIPSET_INIT_ERROR   6   /* Chipset init error */
 #define HM_OPEN_FILE_ERROR  7   /* Open file error */
 #define HM_CHIPSET_INIT_FILE_ERROR  8   /* Chipset init file is error */
+#define HM_TIMEOUT          9   /* Timeout */
 
 #define HM_NOT_SUPPORT      10  /* HCI Middleware not support now */
 
