@@ -56,12 +56,9 @@ void chip_send_hci_reset_cmd_until_ack(void)
 
     do {
         chip_hci_cmd_send(hci_reset_cmd, ARRAY_SIZE(hci_reset_cmd));
-        // rt_kprintf("CMD => 03 0C 00\n");
-        err = chip_hci_event_read(rsp, ARRAY_SIZE(rsp), 100);
-        // if (err) {
-        //     rt_kprintf("Resend hci reset\n");
-        // }
+
+        err = chip_hci_event_read(rsp, ARRAY_SIZE(rsp), 10);
+
     } while (err != HM_SUCCESS || rsp[0] != 0x0e);  /* Receive a event, and is complete event. */
 
-    // rt_kprintf("HCI Reset success\n");
 }

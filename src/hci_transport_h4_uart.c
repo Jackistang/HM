@@ -33,12 +33,6 @@ void hci_trans_h4_uart_init(struct hci_trans_h4_uart_config *config)
     uart_config.rt_config.data_bits = config->databit;
     uart_config.rt_config.stop_bits = config->stopbit;
     uart_config.rt_config.parity    = config->parity;
-
-    // /* PD11 - CTS, PD12 - RTS */
-    // rt_pin_mode(59, PIN_MODE_OUTPUT);
-    // rt_pin_mode(60, PIN_MODE_OUTPUT);
-    // rt_pin_write(59, PIN_HIGH);
-    // rt_pin_write(60, PIN_HIGH);
 }
 
 static void h4_uart_thread(void *args)

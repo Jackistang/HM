@@ -42,17 +42,6 @@ struct h4_rx {
 struct h4_tx {
 
 };
-// typedef struct package_callback {
-//     hci_trans_h4_package_callback_t cb;
-//     rt_list_t list;
-// } package_callback_t;
-
-// typedef struct hci_send_sync_object {
-//     uint8_t sync_cmd;
-//     hci_vendor_evt_callback_t cb;
-//     struct rt_semaphore sync_sem;
-//     uint8_t cc_evt;
-// } hci_send_sync_object_t;
 
 struct h4_object {
     struct h4_rx rx;
@@ -60,9 +49,6 @@ struct h4_object {
 
     rt_mailbox_t evt_mb;
     rt_mailbox_t acl_mb;
-    // hci_send_sync_object_t send_sync_object; 
-
-    // rt_list_t   callback_list;
 };
 
 static struct h4_object h4_object;
@@ -101,15 +87,8 @@ int hci_trans_h4_open(void)
     int err;
     h4_object.rx.state = H4_RECV_STATE_NONE;
 
-    // rt_sem_init(&h4_object.send_sync_object.sync_sem, "send sync sem", 0, RT_IPC_FLAG_PRIO);
-
     if ((err = hci_trans_h4_uart_open()))
         return err;
-
-    // h4_object.send_sync_object.sync_cmd = 0;
-    // h4_object.send_sync_object.cb = NULL;
-
-    // rt_list_init(&h4_object.callback_list);
 
     rt_kprintf("hci transport h4 open success.\n");
 
@@ -130,67 +109,6 @@ int hci_trans_h4_close(void)
 
     return HM_SUCCESS;
 }
-
-// int hci_trans_h4_register_callback(hci_trans_h4_package_callback_t callback)
-// {
-//     package_callback_t *pkg_callback;
-//     rt_list_for_each_entry(pkg_callback, &h4_object.callback_list, list) {
-//         if (pkg_callback->cb == callback)   /* This callback function has been registered. */
-//             return HM_SUCCESS;
-//     }
-
-//     pkg_callback = rt_malloc(sizeof(package_callback_t));
-//     if (pkg_callback == NULL)
-//         return HM_NO_MEMORY;
-    
-//     pkg_callback->cb = callback;
-//     rt_list_insert_after(&h4_object.callback_list, &pkg_callback->list);
-
-//     return HM_SUCCESS;
-// }
-
-// void hci_trans_h4_remove_callback(hci_trans_h4_package_callback_t callback)
-// {
-//     package_callback_t *pkg_callback;
-//     rt_list_for_each_entry(pkg_callback, &h4_object.callback_list, list) {
-//         if (pkg_callback->cb == callback)
-//             break;
-//     }
-//     rt_list_remove(&pkg_callback->list);
-//     rt_free(pkg_callback);
-// }
-
-// static void process_sync_cmd_event(uint8_t type, uint8_t *pkg, uint16_t len)
-// {
-//     RT_ASSERT(type == HCI_TRANS_H4_TYPE_EVT);
-
-//     /* hci_vendor_cmd_send_sync() function will set this, used for sync callback, 
-//         and don't call other registered callback. */
-//     if (h4_object.send_sync_object.cb) {
-//         h4_object.send_sync_object.cb(pkg, len);
-//     } else {
-//         /* Check it is Complete event. */
-//         if (pkg[0] == 0x0E) {
-//             h4_object.send_sync_object.cc_evt = 1;
-//         }
-//     }
-
-//     rt_sem_release(&h4_object.send_sync_object.sync_sem);
-// }
-
-// static void hci_trans_h4_pkg_notify(uint8_t type, uint8_t *pkg, uint16_t len)
-// {
-//     if (h4_object.send_sync_object.sync_cmd) {
-//         process_sync_cmd_event(type, pkg, len);
-//         h4_object.send_sync_object.sync_cmd = 0;
-//         return ;
-//     }
-
-//     package_callback_t *pkg_callback;
-//     rt_list_for_each_entry(pkg_callback, &h4_object.callback_list, list) {
-//         pkg_callback->cb(type, pkg, len);
-//     }
-// }
 
 static int h4_recv_type(uint8_t byte)
 {
@@ -235,14 +153,7 @@ static int h4_recv_acl(uint8_t byte)
     }
 
     if (acl->cur == acl->len) {
-//         hci_trans_h4_pkg_notify(HCI_TRANS_H4_TYPE_ACL, acl->data, acl->len);
-// #if HM_CONFIG_BTSTACK
-//         /* Transfer the responsibility of free memory to btstack user.*/
-// #else
-//         hci_trans_h4_free(acl->data);
-//         acl->data = NULL;
-//         acl->cur = acl->len = 0;
-// #endif
+        /* The user who receive mail from "event mailbox" is responsible for free it's memory.*/
         err = rt_mb_send(h4_object.acl_mb, (rt_ubase_t)acl->data);
         if (err) {
             rt_kprintf("acl mailbox send mail fail\n");
@@ -275,15 +186,6 @@ static int h4_recv_evt(uint8_t byte)
         evt->len = evt->data[1] + sizeof(struct hm_hci_evt);
     
     if (evt->cur == evt->len) {
-//         hci_trans_h4_pkg_notify(HCI_TRANS_H4_TYPE_EVT, evt->data, evt->len);
-// #if HM_CONFIG_BTSTACK
-//         /* Transfer the responsibility of free memory to btstack user.*/
-// #else
-//         hci_trans_h4_free(evt->data);
-//         evt->data = NULL;
-//         evt->cur = evt->len = 0;
-// #endif
-
         /* The user who receive mail from "event mailbox" is responsible for free it's memory.*/
         err = rt_mb_send(h4_object.evt_mb, (rt_ubase_t)evt->data);
         if (err) {
@@ -412,82 +314,6 @@ void hci_trans_h4_send_free(uint8_t *buf)
     uint8_t *p = buf - 1;
     hci_trans_h4_free(p);
 }
-
-// static int hci_cmd_send_sync_inline(uint8_t *hci_cmd, uint16_t len, int32_t time)
-// {
-//     int err;
-
-//     uint8_t *p = hci_trans_h4_send_alloc(HCI_TRANS_H4_TYPE_CMD);
-//     if (p == NULL) {
-//         err = HM_NO_MEMORY;
-//         return err;
-//     }
-
-//     rt_memcpy(p, hci_cmd, len);
-//     hci_trans_h4_send(HCI_TRANS_H4_TYPE_CMD, p);
-
-//     err = rt_sem_take(&h4_object.send_sync_object.sync_sem, time);
-//     if (err) {
-//         rt_kprintf("HCI command send sync timeout.\n");
-//         hci_trans_h4_send_free(p);
-//         return HM_TIMEOUT;
-//     }
-
-//     hci_trans_h4_send_free(p);
-//     return HM_SUCCESS;
-// }
-
-// static void hci_cmd_send_sync_dummy_callback(uint8_t *hci_evt, uint16_t len)
-// {
-//     return ;
-// }
-
-// int hci_vendor_cmd_send_sync(uint8_t *hci_cmd, uint16_t len, int32_t time, hci_vendor_evt_callback_t callback)
-// {
-//     RT_ASSERT(hci_cmd);
-//     RT_ASSERT(len > 0);
-
-//     int err = HM_SUCCESS;
-//     h4_object.send_sync_object.sync_cmd = 1;
-    
-//     if (callback == NULL)
-//         h4_object.send_sync_object.cb = hci_cmd_send_sync_dummy_callback;
-//     else
-//         h4_object.send_sync_object.cb = callback;
-
-//     err = hci_cmd_send_sync_inline(hci_cmd, len, time);
-
-//     h4_object.send_sync_object.cb = NULL;
-//     return err;
-// }
-
-// /* Should receive complete event. */
-// int hci_cmd_send_sync(uint8_t *hci_cmd, uint16_t len, int32_t time)
-// {
-//     RT_ASSERT(hci_cmd);
-//     RT_ASSERT(len > 0);
-
-//     h4_object.send_sync_object.sync_cmd = 1;
-
-//     int err;
-
-//     err = hci_cmd_send_sync_inline(hci_cmd, len, time);
-//     if (err) 
-//         return err;
-
-//     if (!h4_object.send_sync_object.cc_evt)
-//         return HM_HCI_CMD_ERROR;
-
-//     h4_object.send_sync_object.cc_evt = 0;
-//     return HM_SUCCESS;
-// }
-
-// static uint8_t reset_cmd[] = {0x01, 0x03, 0x0C, 0x00};
-// int hci_reset_cmd_send(void)
-// {
-//     return hci_trans_h4_uart_send(reset_cmd, ARRAY_SIZE(reset_cmd));
-// }
-
 
 static int hci_trans_h4_recv(rt_mailbox_t mb, uint8_t **buf, int ms)
 {
