@@ -128,6 +128,9 @@ extern int hci_trans_h4_send(uint8_t type, uint8_t *data);
 // extern int hci_reset_cmd_send(void);
 
 int hci_trans_h4_recv_event(uint8_t **buf, int ms);
+int hci_trans_h4_recv_acl(uint8_t **buf, int ms);
+int hci_trans_h4_recv_all(uint8_t **buf, int ms, uint8_t *type);
+
 void hci_trans_h4_recv_free(uint8_t *p);
 
 #ifdef __cplusplus

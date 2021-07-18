@@ -21,41 +21,37 @@ static struct hci_trans_h4_config h4_config = {
     },
 };
 
-typedef struct btstack_port_async_read {
-    uint8_t pkg_type;
-    uint8_t *pkg;   /* package pointer */
-    uint16_t size;  /* package size */
-} btstack_port_async_read_t;
-
 static void (*packet_handler)(uint8_t packet_type, uint8_t *packet, uint16_t size);
 
 /* No effect if port doensn't have file descriptors */
 static int fd = 10;
 static btstack_data_source_t btstack_port_data_source;
 
-/* Used for async read in two thread. */
-static rt_mailbox_t async_read_mb;
-static rt_mp_t async_read_pool;
-
 static void btstack_port_process_poll(btstack_data_source_t *ds)
 {
-    btstack_port_async_read_t *async_read = NULL;
+    uint8_t *p = NULL;
+    int err;
+    uint8_t type;
+    uint16_t len = 0;
 
-    rt_err_t err = rt_mb_recv(async_read_mb, (rt_ubase_t *)&async_read, RT_WAITING_NO);
-    
-    /* No data to read. */
-    if (err != RT_EOK)
+    err = hci_trans_h4_recv_all(&p, RT_WAITING_NO, &type);
+    if (err)
         return ;
+    
+    switch (type) {
+    case HCI_TRANS_H4_TYPE_EVT:
+        len = 2 + p[1];
+        break;
+    case HCI_TRANS_H4_TYPE_ACL:
+        len = 4 + ((uint16_t)p[2] | ((uint16_t)p[3] << 8));
+        break;
+    default:
+        return ;
+    }
 
-    RT_ASSERT(async_read);
+    packet_handler(type, p, len);
 
-    packet_handler(async_read->pkg_type, async_read->pkg, async_read->size);
-
-    rt_memset(async_read->pkg, 0, async_read->size);
-    rt_mp_free(async_read->pkg);
-    rt_mp_free(async_read);
-
-    btstack_run_loop_disable_data_source_callbacks(&btstack_port_data_source, DATA_SOURCE_CALLBACK_POLL);
+    hci_trans_h4_recv_free(p);
 }
 
 static void btstack_port_process(btstack_data_source_t *ds, btstack_data_source_callback_type_t callback_type) 
@@ -68,21 +64,6 @@ static void btstack_port_process(btstack_data_source_t *ds, btstack_data_source_
     default:
         break;
     }
-}
-
-/* This function is in another thread. */
-static void hm_hci_trans_h4_package_callback(uint8_t pkg_type, uint8_t *pkg, uint16_t size)
-{
-    btstack_port_async_read_t *async_read = (btstack_port_async_read_t *)rt_mp_alloc(async_read_pool, RT_WAITING_NO);
-    RT_ASSERT(async_read);
-
-    /* The user is responsibility for free the `pkg` memory with `rt_mp_free` */
-    async_read->pkg_type = pkg_type;
-    async_read->pkg = pkg;
-    async_read->size = size;
-
-    rt_err_t err = rt_mb_send(async_read_mb, (rt_ubase_t)async_read);
-    RT_ASSERT(err == RT_EOK);
 }
 
 static void hci_transport_h4_init(const void *transport_config)
@@ -104,11 +85,6 @@ static void hci_transport_h4_init(const void *transport_config)
     h4_config.uart_config.device_name = hci_transport_config_uart->device_name;
 
     hci_trans_h4_init(&h4_config);
-
-    async_read_pool = rt_mp_create("async read pool", 5, sizeof(btstack_port_async_read_t));
-    async_read_mb = rt_mb_create("async read mailbox", 5, RT_IPC_FLAG_PRIO);
-    RT_ASSERT(async_read_mb);
-    RT_ASSERT(async_read_pool);
 }
 
 static int hci_transport_h4_open(void)
@@ -119,12 +95,13 @@ static int hci_transport_h4_open(void)
         return -1;
     }
 
-    hci_trans_h4_register_callback(hm_hci_trans_h4_package_callback);
-
     // set up data_source
     btstack_run_loop_set_data_source_fd(&btstack_port_data_source, fd);
     btstack_run_loop_set_data_source_handler(&btstack_port_data_source, &btstack_port_process);
     btstack_run_loop_add_data_source(&btstack_port_data_source);
+
+    // Enable run loop for receive data.
+    btstack_run_loop_enable_data_source_callbacks(&btstack_port_data_source, DATA_SOURCE_CALLBACK_POLL);
 
     return 0;
 }
@@ -136,8 +113,6 @@ static int hci_transport_h4_close(void)
         log_error("hci_transport_h4_close error");
         return -1;
     }
-
-    hci_trans_h4_remove_callback(hm_hci_trans_h4_package_callback);
 
     // first remove run loop handler
     btstack_run_loop_remove_data_source(&btstack_port_data_source);
@@ -164,17 +139,11 @@ static int hci_transport_h4_send_packet(uint8_t packet_type, uint8_t *packet, in
     packet--;
     *packet = packet_type;
 
-    if (packet[1] == 0x01 && packet[2] == 0x10)
-        rt_thread_mdelay(100);
-
     int err = hci_trans_h4_uart_send(packet, size);
 
     // Notify btstack to release packet buffer.
     static const uint8_t packet_sent_event[] = { HCI_EVENT_TRANSPORT_PACKET_SENT, 0};
     packet_handler(HCI_EVENT_PACKET, (uint8_t *) &packet_sent_event[0], sizeof(packet_sent_event));
-
-    // Enable run loop for receive data.
-    btstack_run_loop_enable_data_source_callbacks(&btstack_port_data_source, DATA_SOURCE_CALLBACK_POLL);
 
     return err;
 }
@@ -218,14 +187,7 @@ static btstack_chipset_result_t chipset_next_command(uint8_t * hci_cmd_buffer)
         return BTSTACK_CHIPSET_NO_INIT_SCRIPT;
     }
 
-    /* Temporary remove callback in chipset init.*/
-    hci_trans_h4_remove_callback(hm_hci_trans_h4_package_callback);
-
     int err = chipset_instance->init();
-
-    /* Restore callback after chipset init.*/
-    hci_trans_h4_register_callback(hm_hci_trans_h4_package_callback);
-
     if (err) {
         return BTSTACK_CHIPSET_NO_INIT_SCRIPT;
     }

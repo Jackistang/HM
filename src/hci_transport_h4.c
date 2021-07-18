@@ -59,6 +59,7 @@ struct h4_object {
     struct h4_tx tx;
 
     rt_mailbox_t evt_mb;
+    rt_mailbox_t acl_mb;
     // hci_send_sync_object_t send_sync_object; 
 
     // rt_list_t   callback_list;
@@ -79,7 +80,7 @@ static uint8_t evt_pool_buf[MEMPOOL_SIZE(2, HCI_EVENT_BUF_SIZE)];
 
 static struct rt_mempool acl_pool;
 ALIGN(RT_ALIGN_SIZE)
-static uint8_t acl_pool_buf[MEMPOOL_SIZE(1, HCI_ACL_BUF_SIZE)];
+static uint8_t acl_pool_buf[MEMPOOL_SIZE(2, HCI_ACL_BUF_SIZE)];
 
 void hci_trans_h4_init(struct hci_trans_h4_config *config)
 {
@@ -88,6 +89,7 @@ void hci_trans_h4_init(struct hci_trans_h4_config *config)
     rt_mp_init(&acl_pool, "acl_pool", acl_pool_buf, ARRAY_SIZE(acl_pool_buf), HCI_ACL_BUF_SIZE);
 
     h4_object.evt_mb = rt_mb_create("evt.mb", 5, RT_IPC_FLAG_PRIO);
+    h4_object.acl_mb = rt_mb_create("acl.mb", 5, RT_IPC_FLAG_PRIO);
 
     hci_trans_h4_uart_init(&config->uart_config);
 
@@ -190,7 +192,7 @@ int hci_trans_h4_close(void)
 //     }
 // }
 
-static int hci_trans_h4_recv_type(uint8_t byte)
+static int h4_recv_type(uint8_t byte)
 {
     switch (byte) {
     case H4_RECV_STATE_EVT:
@@ -211,7 +213,7 @@ static int hci_trans_h4_recv_type(uint8_t byte)
     return HM_SUCCESS;
 }
 
-static int hci_trans_h4_recv_acl(uint8_t byte)
+static int h4_recv_acl(uint8_t byte)
 {
     int err = HM_SUCCESS;
     struct h4_rx_acl *acl = &h4_object.rx.acl;
@@ -241,7 +243,10 @@ static int hci_trans_h4_recv_acl(uint8_t byte)
 //         acl->data = NULL;
 //         acl->cur = acl->len = 0;
 // #endif
-        // TODO
+        err = rt_mb_send(h4_object.acl_mb, (rt_ubase_t)acl->data);
+        if (err) {
+            rt_kprintf("acl mailbox send mail fail\n");
+        }
 
         h4_object.rx.state = H4_RECV_STATE_NONE;
     }
@@ -249,7 +254,7 @@ static int hci_trans_h4_recv_acl(uint8_t byte)
     return HM_SUCCESS;
 }
 
-static int hci_trans_h4_recv_evt(uint8_t byte)
+static int h4_recv_evt(uint8_t byte)
 {
     int err = HM_SUCCESS;
     struct h4_rx_evt *evt = &h4_object.rx.evt;
@@ -297,13 +302,13 @@ int hci_trans_h4_recv_byte(uint8_t byte)
 
     switch (h4_object.rx.state) {
     case H4_RECV_STATE_NONE:
-        err = hci_trans_h4_recv_type(byte);
+        err = h4_recv_type(byte);
         break;
     case H4_RECV_STATE_ACL:
-        err = hci_trans_h4_recv_acl(byte);
+        err = h4_recv_acl(byte);
         break;
     case H4_RECV_STATE_EVT:
-        err = hci_trans_h4_recv_evt(byte);
+        err = h4_recv_evt(byte);
         break;
     case H4_RECV_STATE_CMD:
     case H4_RECV_STATE_SCO:
@@ -483,17 +488,44 @@ void hci_trans_h4_send_free(uint8_t *buf)
 //     return hci_trans_h4_uart_send(reset_cmd, ARRAY_SIZE(reset_cmd));
 // }
 
-/* The user is responsible for free it's memory with `hci_trans_h4_recv_free()`.*/
-int hci_trans_h4_recv_event(uint8_t **buf, int ms)
+
+static int hci_trans_h4_recv(rt_mailbox_t mb, uint8_t **buf, int ms)
 {
     uint8_t *p = NULL;
 
-    rt_err_t err = rt_mb_recv(h4_object.evt_mb, (rt_ubase_t *)&p, ms);
+    rt_err_t err = rt_mb_recv(mb, (rt_ubase_t *)&p, ms);
     if (err != RT_EOK)
         return -HM_TIMEOUT;
     
     *buf = p;
     return HM_SUCCESS;
+}
+
+/* The user is responsible for free it's memory with `hci_trans_h4_recv_free()`.*/
+int hci_trans_h4_recv_event(uint8_t **buf, int ms)
+{
+    return hci_trans_h4_recv(h4_object.evt_mb, buf, ms);
+}
+
+/* The user is responsible for free it's memory with `hci_trans_h4_recv_free()`.*/
+int hci_trans_h4_recv_acl(uint8_t **buf, int ms)
+{
+    return hci_trans_h4_recv(h4_object.acl_mb, buf, ms);
+}
+
+int hci_trans_h4_recv_all(uint8_t **buf, int ms, uint8_t *type)
+{
+    if (hci_trans_h4_recv_event(buf, ms) == HM_SUCCESS) {
+        *type = HCI_TRANS_H4_TYPE_EVT;
+        return HM_SUCCESS;
+    }
+
+    if (hci_trans_h4_recv_acl(buf, ms) == HM_SUCCESS) {
+        *type = HCI_TRANS_H4_TYPE_ACL;
+        return HM_SUCCESS;
+    }
+
+    return -HM_TIMEOUT;
 }
 
 void hci_trans_h4_recv_free(uint8_t *p)
