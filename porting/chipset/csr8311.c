@@ -47,6 +47,7 @@ int chipset_csr_init(void)
     }
 
     /* warm reset */
+    rt_kprintf("CSR8311 start warm reset\n");
     chip_hci_cmd_send(warm_reset, ARRAY_SIZE(warm_reset));
     
     /* Wait 10 ms for warm reset complete. */

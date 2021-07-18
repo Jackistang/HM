@@ -81,24 +81,44 @@ void test_chip_hci_cmd_send_evt_recv(void)
 void test_csr8311_init(void)
 {
     int err;
+    uint8_t *p = NULL;
 
-    hci_reset_cmd_send();
-    rt_thread_mdelay(100);
+    do {
+        chip_hci_cmd_send(reset_cmd, ARRAY_SIZE(reset_cmd));
+        rt_kprintf("CMD => 03 0C 00\n");
+        err = hci_trans_h4_recv_event(&p, 100);
+        if (err) {
+            rt_kprintf("Resend reset\n");
+        }
+    } while (err != HM_SUCCESS && p == NULL);
 
-    hci_reset_cmd_send();
-    rt_thread_mdelay(100);
+    hci_trans_h4_recv_free(p);
+    p = NULL;
 
-    hci_reset_cmd_send();
-    rt_thread_mdelay(100);
+    rt_kprintf("SCR8311 start init\n");
 
-   err = chipset_instance->init();
-   uassert_int_equal(err, HM_SUCCESS);
+    err = chipset_instance->init();
+    uassert_int_equal(err, HM_SUCCESS);
+
+
+    do {
+        chip_hci_cmd_send(reset_cmd, ARRAY_SIZE(reset_cmd));
+        rt_kprintf("CMD => 03 0C 00\n");
+        err = hci_trans_h4_recv_event(&p, 100);
+        if (err) {
+            rt_kprintf("Resend reset\n");
+        }
+    } while (err != HM_SUCCESS && p == NULL);
+
+    hci_trans_h4_recv_free(p);
+    p = NULL;
+
 }
 
 static void testcase_chipset(void)
 {
-    UTEST_UNIT_RUN(test_chip_hci_cmd_send_evt_recv);
-    // UTEST_UNIT_RUN(test_csr8311_init);
+//    UTEST_UNIT_RUN(test_chip_hci_cmd_send_evt_recv);
+    UTEST_UNIT_RUN(test_csr8311_init);
 }
 UTEST_TC_EXPORT(testcase_chipset, "hm.chipset", utest_tc_init, utest_tc_cleanup, 1000);
 
