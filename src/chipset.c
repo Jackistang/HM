@@ -29,13 +29,14 @@ int chip_hci_cmd_send(uint8_t *buf, uint16_t size)
 }
 
 /* Wait until read a event. */
-int chip_hci_event_read(uint8_t *buf, uint16_t size)
+int chip_hci_event_read(uint8_t *buf, uint16_t size, int ms)
 {
     uint8_t *p = NULL;
     int err;
 
-    hci_trans_h4_recv_event(&p, RT_WAITING_FOREVER);
-    RT_ASSERT(p);
+    err = hci_trans_h4_recv_event(&p, ms);
+    if (err)
+        return err;
 
     uint16_t len = 2 + p[1];    /* HCI Event length */
     len = (len > size) ? size : len;
@@ -44,4 +45,23 @@ int chip_hci_event_read(uint8_t *buf, uint16_t size)
     hci_trans_h4_recv_free(p);
 
     return HM_SUCCESS;
+}
+
+void chip_send_hci_reset_cmd_until_ack(void)
+{
+    int err;
+
+    static uint8_t hci_reset_cmd[] = {0x03, 0x0C, 0x00};
+    uint8_t rsp[10];
+
+    do {
+        chip_hci_cmd_send(hci_reset_cmd, ARRAY_SIZE(hci_reset_cmd));
+        // rt_kprintf("CMD => 03 0C 00\n");
+        err = chip_hci_event_read(rsp, ARRAY_SIZE(rsp), 100);
+        // if (err) {
+        //     rt_kprintf("Resend hci reset\n");
+        // }
+    } while (err != HM_SUCCESS || rsp[0] != 0x0e);  /* Receive a event, and is complete event. */
+
+    // rt_kprintf("HCI Reset success\n");
 }

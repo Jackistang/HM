@@ -8,6 +8,9 @@
 #endif
 
 static uint8_t download_commands[] = {
+    /* 0x2819: Read build ID */
+//    0x00, 0xFC, 0x17, 0xc2, 0x00, 0x00, 0x09, 0x00, 0x01, 0x00, 0x19, 0x28, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+
     // 0x01fe: Set ANA_Freq to 26MHz
     0x00, 0xFC, 0x13, 0xc2, 0x02, 0x00, 0x09, 0x00, 0x01, 0x00, 0x03, 0x70, 0x00, 0x00, 0xfe, 0x01, 0x01, 0x00, 0x08, 0x00, 0x90, 0x65,
     // 0x00f2: Set HCI_NOP_DISABLE
@@ -32,14 +35,17 @@ int chipset_csr_init(void)
     uint8_t *end = download_commands + ARRAY_SIZE(download_commands);
     uint16_t len = 0;
     uint8_t recv[30];
-    int err;
+
+    chip_send_hci_reset_cmd_until_ack();
+
+    rt_kprintf("SCR8311 start init\n");
 
     while (p < end) {
         len = 3 + p[2];
 
         chip_hci_cmd_send(p, len);
 
-        chip_hci_event_read(recv, ARRAY_SIZE(recv));
+        chip_hci_event_read(recv, ARRAY_SIZE(recv), RT_WAITING_FOREVER);
         if (recv[0] != 0xFF)    // Vendor Event
             return HM_CHIPSET_INIT_ERROR;
         
@@ -52,6 +58,11 @@ int chipset_csr_init(void)
     
     /* Wait 10 ms for warm reset complete. */
     rt_thread_mdelay(10);
+
+    /* Make sure chipset is normal now. */
+    chip_send_hci_reset_cmd_until_ack();
+
+    rt_kprintf("CSR8311 init success\n");
 
     return HM_SUCCESS;
 }

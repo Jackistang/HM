@@ -57,7 +57,7 @@ void test_chip_hci_cmd_send_evt_recv(void)
     err = chip_hci_cmd_send(reset_cmd, ARRAY_SIZE(reset_cmd));
     uassert_int_equal(err, HM_SUCCESS);
     
-    err = chip_hci_event_read(recv, ARRAY_SIZE(recv));
+    err = chip_hci_event_read(recv, ARRAY_SIZE(recv), RT_WAITING_FOREVER);
     uassert_int_equal(err, HM_SUCCESS);
     uassert_buf_equal(recv, reset_cmd_event, ARRAY_SIZE(reset_cmd_event));
 
@@ -65,7 +65,7 @@ void test_chip_hci_cmd_send_evt_recv(void)
     err = chip_hci_cmd_send(chipset_send2, ARRAY_SIZE(chipset_send2));
     uassert_int_equal(err, HM_SUCCESS);
     
-    err = chip_hci_event_read(recv, ARRAY_SIZE(recv));
+    err = chip_hci_event_read(recv, ARRAY_SIZE(recv), RT_WAITING_FOREVER);
     uassert_int_equal(err, HM_SUCCESS);
     uassert_buf_equal(recv, chipset_recv2, ARRAY_SIZE(chipset_recv2));
 
@@ -73,7 +73,7 @@ void test_chip_hci_cmd_send_evt_recv(void)
     err = chip_hci_cmd_send(chipset_send3, ARRAY_SIZE(chipset_send3));
     uassert_int_equal(err, HM_SUCCESS);
     
-    err = chip_hci_event_read(recv, ARRAY_SIZE(recv));
+    err = chip_hci_event_read(recv, ARRAY_SIZE(recv), RT_WAITING_FOREVER);
     uassert_int_equal(err, HM_SUCCESS);
     uassert_buf_equal(recv, chipset_recv3, ARRAY_SIZE(chipset_recv3));
 }
@@ -83,36 +83,8 @@ void test_csr8311_init(void)
     int err;
     uint8_t *p = NULL;
 
-    do {
-        chip_hci_cmd_send(reset_cmd, ARRAY_SIZE(reset_cmd));
-        rt_kprintf("CMD => 03 0C 00\n");
-        err = hci_trans_h4_recv_event(&p, 100);
-        if (err) {
-            rt_kprintf("Resend reset\n");
-        }
-    } while (err != HM_SUCCESS && p == NULL);
-
-    hci_trans_h4_recv_free(p);
-    p = NULL;
-
-    rt_kprintf("SCR8311 start init\n");
-
     err = chipset_instance->init();
     uassert_int_equal(err, HM_SUCCESS);
-
-
-    do {
-        chip_hci_cmd_send(reset_cmd, ARRAY_SIZE(reset_cmd));
-        rt_kprintf("CMD => 03 0C 00\n");
-        err = hci_trans_h4_recv_event(&p, 100);
-        if (err) {
-            rt_kprintf("Resend reset\n");
-        }
-    } while (err != HM_SUCCESS && p == NULL);
-
-    hci_trans_h4_recv_free(p);
-    p = NULL;
-
 }
 
 static void testcase_chipset(void)

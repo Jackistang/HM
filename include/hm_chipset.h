@@ -27,7 +27,7 @@ hm_chipset_t* hm_chipset_get_instance(void);
 int chip_hci_cmd_send(uint8_t *buf, uint16_t size);
 
 /* Wait until read a event. */
-int chip_hci_event_read(uint8_t *buf, uint16_t size);
+int chip_hci_event_read(uint8_t *buf, uint16_t size, int ms);
 
 #ifdef __cplusplus
 }
