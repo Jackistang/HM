@@ -5,6 +5,7 @@ cwd  = GetCurrentDir()
 src = Split('''
     src/hci_transport_h4.c
     src/hci_transport_h4_uart.c
+    src/chipset.c
 ''')
 
 # For stack choice

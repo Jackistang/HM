@@ -58,23 +58,23 @@ extern int hci_trans_h4_open(void);
 extern int hci_trans_h4_close(void);
 
 
-typedef void (*hci_trans_h4_package_callback_t)(uint8_t pkg_type, uint8_t *pkg, uint16_t size);
+// typedef void (*hci_trans_h4_package_callback_t)(uint8_t pkg_type, uint8_t *pkg, uint16_t size);
 
-/**
- * @brief Register a callback for incoming package.
- * 
- * @param callback A callback function pointer.
- * 
- * @return int
- * @retval  HM_SUCCESS      Register success.
- * @retval  HM_NO_MEMORY    Malloc memory fail.
- * 
- * @note If use btstack, this callback is resposibility to free package buffer with `rt_mp_free()`.
- */
-extern int hci_trans_h4_register_callback(hci_trans_h4_package_callback_t callback);
+// /**
+//  * @brief Register a callback for incoming package.
+//  * 
+//  * @param callback A callback function pointer.
+//  * 
+//  * @return int
+//  * @retval  HM_SUCCESS      Register success.
+//  * @retval  HM_NO_MEMORY    Malloc memory fail.
+//  * 
+//  * @note If use btstack, this callback is resposibility to free package buffer with `rt_mp_free()`.
+//  */
+// extern int hci_trans_h4_register_callback(hci_trans_h4_package_callback_t callback);
 
 
-extern void hci_trans_h4_remove_callback(hci_trans_h4_package_callback_t callback);
+// extern void hci_trans_h4_remove_callback(hci_trans_h4_package_callback_t callback);
 
 /**
  * @brief HCI transport h4 receive a byte from uart, used for hci_transport_h4.c .
@@ -119,13 +119,16 @@ extern void hci_trans_h4_send_free(uint8_t *buf);
  */
 extern int hci_trans_h4_send(uint8_t type, uint8_t *data);
 
-typedef void (*hci_vendor_evt_callback_t)(uint8_t *hci_evt, uint16_t len);
+// typedef void (*hci_vendor_evt_callback_t)(uint8_t *hci_evt, uint16_t len);
 
-extern int hci_vendor_cmd_send_sync(uint8_t *hci_cmd, uint16_t len, int32_t time, hci_vendor_evt_callback_t callback);
+// extern int hci_vendor_cmd_send_sync(uint8_t *hci_cmd, uint16_t len, int32_t time, hci_vendor_evt_callback_t callback);
 
-extern int hci_cmd_send_sync(uint8_t *hci_cmd, uint16_t len, int32_t time);
+// extern int hci_cmd_send_sync(uint8_t *hci_cmd, uint16_t len, int32_t time);
 
-extern int hci_reset_cmd_send(void);
+// extern int hci_reset_cmd_send(void);
+
+int hci_trans_h4_recv_event(uint8_t **buf, int ms);
+void hci_trans_h4_recv_free(uint8_t *p);
 
 #ifdef __cplusplus
 }

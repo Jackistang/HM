@@ -22,46 +22,35 @@ static uint8_t download_commands[] = {
 
 static uint8_t warm_reset[] = {
         //  WarmReset Command
-      0x01, 0x00, 0xFC, 0x13, 0xc2, 0x02, 0x00, 0x09, 0x00, 0x03, 0x0e, 0x02, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00,
+      0x00, 0xFC, 0x13, 0xc2, 0x02, 0x00, 0x09, 0x00, 0x03, 0x0e, 0x02, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00,
 };
 
-static void hci_vendor_evt_callback(uint8_t *hci_evt, uint16_t len)
-{
-#if HM_CONFIG_BTSTACK
-    hci_dump_packet(HCI_EVENT_PACKET, 1, hci_evt, len);
-#endif
-}
 
 int chipset_csr_init(void)
 {
     uint8_t *p = download_commands;
     uint8_t *end = download_commands + ARRAY_SIZE(download_commands);
     uint16_t len = 0;
+    uint8_t recv[30];
     int err;
 
     while (p < end) {
         len = 3 + p[2];
 
-#if HM_CONFIG_BTSTACK
-        hci_dump_packet(HCI_COMMAND_DATA_PACKET, 0, p, len);
-#endif
+        chip_hci_cmd_send(p, len);
 
-        err = hci_vendor_cmd_send_sync(p, len, 2000, hci_vendor_evt_callback);
-        if (err) {
-            rt_kprintf("csr chipset init fail err(%d)\n", err);
+        chip_hci_event_read(recv, ARRAY_SIZE(recv));
+        if (recv[0] != 0xFF)    // Vendor Event
             return HM_CHIPSET_INIT_ERROR;
-        }
-
+        
         p += len;
     }
 
     /* warm reset */
-    hci_trans_h4_uart_send(warm_reset, ARRAY_SIZE(warm_reset));
-    /* Wait warm reset complete. */
+    chip_hci_cmd_send(warm_reset, ARRAY_SIZE(warm_reset));
     
-    hci_reset_cmd_send();
-    hci_reset_cmd_send();
-    hci_reset_cmd_send();
+    /* Wait 10 ms for warm reset complete. */
+    rt_thread_mdelay(10);
 
     return HM_SUCCESS;
 }

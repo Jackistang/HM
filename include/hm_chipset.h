@@ -23,6 +23,12 @@ typedef struct hm_chipset {
 
 hm_chipset_t* hm_chipset_get_instance(void);
 
+/* Send a command */
+int chip_hci_cmd_send(uint8_t *buf, uint16_t size);
+
+/* Wait until read a event. */
+int chip_hci_event_read(uint8_t *buf, uint16_t size);
+
 #ifdef __cplusplus
 }
 #endif
