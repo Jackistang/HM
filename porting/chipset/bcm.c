@@ -5,10 +5,6 @@
 #include <unistd.h>
 #include <rtthread.h>
 
-#if HM_CONFIG_BTSTACK
-#include "bluetooth.h"
-#include "hci_dump.h"
-#endif
 
 #define BCM_PATH_NAME    "/dev/bt_image"
 #define HCI_COMMAND_HEADER  3
@@ -17,82 +13,85 @@ static uint8_t download_commands[] = {
     0x2e, 0xfc, 0x00,
 };
 
-static struct rt_semaphore sync_sem;
-
-static void hci_vendor_evt_callback(uint8_t *hci_evt, uint16_t len)
-{
-#if HM_CONFIG_BTSTACK
-    hci_dump_packet(HCI_EVENT_PACKET, 1, hci_evt, len);
-#endif
-}
-
-static void hci_trans_h4_package_callback(uint8_t pkg_type, uint8_t *pkg, uint16_t size)
-{
-    RT_ASSERT(pkg_type == HCI_TRANS_H4_TYPE_EVT);
-
-#if HM_CONFIG_BTSTACK
-    hci_dump_packet(HCI_EVENT_PACKET, 1, pkg, size);
-#endif
-
-    rt_sem_release(&sync_sem);
-}
-
 int chipset_bcm_init(void)
 {
     int err = HM_SUCCESS;
+    int res = 0;
+    uint8_t event_buf[20];
 
-    rt_sem_init(&sync_sem, "bcm sync sem", 0, RT_IPC_FLAG_PRIO);
+    chip_send_hci_reset_cmd_until_ack();
 
     int fd = open(BCM_PATH_NAME, O_RDONLY);
     if (fd < 0) {
         rt_kprintf("Open bcm file %d error\n", BCM_PATH_NAME);
-        err = HM_OPEN_FILE_ERROR;
-        goto err_open;
+        return HM_OPEN_FILE_ERROR;
     }
 
-#if HM_CONFIG_BTSTACK
-    hci_dump_packet(HCI_COMMAND_DATA_PACKET, 0, download_commands, ARRAY_SIZE(download_commands));
-#endif
-    
-    err = hci_vendor_cmd_send_sync(download_commands, ARRAY_SIZE(download_commands), 1000, hci_vendor_evt_callback);
-    if (err) {
-        rt_kprintf("bcm chipset init fail err(%d)\n", err);
+    rt_kprintf("bcm init start\n");
+
+    chip_hci_cmd_send(download_commands, ARRAY_SIZE(download_commands));
+    chip_hci_event_read(event_buf, ARRAY_SIZE(event_buf), RT_WAITING_FOREVER);
+    if (event_buf[0] != 0x0E) {
         err = HM_CHIPSET_INIT_ERROR;
         goto err_download_cmd;
     }
 
-    hci_trans_h4_register_callback(hci_trans_h4_package_callback);
+    uint16_t next_read = 0;
     uint8_t *p = hci_trans_h4_send_alloc(HCI_TRANS_H4_TYPE_CMD);
     RT_ASSERT(p);
 
-    int count = 0;
-    uint16_t next_read = 0;
-    while ((count = read(fd, p, HCI_COMMAND_HEADER)) == HCI_COMMAND_HEADER) {
-        next_read = p[2];
+    rt_kprintf("bcm start download init script\n");
 
-        count = read(fd, p + HCI_COMMAND_HEADER, next_read);
-        if (count != next_read) {
+    do {
+        res = read(fd, p, 3);
+        if (res == 0) {
+            rt_kprintf("bcm chipset init file read end\n");
+            break;
+        }
+        if (res < 0) {
+            rt_kprintf("bcm chipset init file read error (%d)\n", res);
+            err = HM_CHIPSET_INIT_FILE_ERROR;
+            goto err_download;
+        }
+
+        /* Unknown error, test find it, is file end. */
+        if (p[0] == 0xFF && p[1] == 0xFF && p[2] == 0xFF) {
+            break;
+        }
+
+        next_read = p[2];
+        res = read(fd, p + 3, next_read);
+        if (res < 0) {
+            rt_kprintf("bcm chipset init file read error (%d)\n", res);
             err = HM_CHIPSET_INIT_FILE_ERROR;
             goto err_download;
         }
 
         hci_trans_h4_send(HCI_TRANS_H4_TYPE_CMD, p);
-        err = rt_sem_take(&sync_sem, 1000);
-        if (err) {
+
+        chip_hci_event_read(event_buf, ARRAY_SIZE(event_buf), RT_WAITING_FOREVER);
+        if (event_buf[0] != 0x0E) {
             err = HM_CHIPSET_INIT_ERROR;
             goto err_download;
         }
-    }
+
+    } while(1);
+
+    close(fd);
+    hci_trans_h4_send_free(p);
+    rt_kprintf("bcm init script download success\n");
+
+    chip_send_hci_reset_cmd_until_ack();
+
+    rt_kprintf("bcm init success\n");
+    return HM_SUCCESS;
 
 err_download:
     hci_trans_h4_send_free(p);
-    hci_trans_h4_remove_callback(hci_trans_h4_package_callback);
 
 err_download_cmd:
     close(fd);
 
-err_open:
-    rt_sem_detach(&sync_sem);
     return err;
 }
 

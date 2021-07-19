@@ -29,6 +29,8 @@ int chip_hci_cmd_send(uint8_t *buf, uint16_t size);
 /* Wait until read a event. */
 int chip_hci_event_read(uint8_t *buf, uint16_t size, int ms);
 
+void chip_send_hci_reset_cmd_until_ack(void);
+
 #ifdef __cplusplus
 }
 #endif
