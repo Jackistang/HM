@@ -27,8 +27,8 @@ extern void hci_trans_h4_uart_init(struct hci_trans_h4_uart_config *config);
  * @brief Open H4 uart.
  * 
  * @return int 
- * @retval  HM_SUCCESS              Open success.
- * @retval  HM_THREAD_ERROR Create  h4 uart thread error.
+ * @retval  HM_SUCCESS          Open success.
+ * @retval  -HM_THREAD_ERROR     Create h4 uart thread error.
  */
 extern int hci_trans_h4_uart_open(void);
 
@@ -47,8 +47,8 @@ extern int hci_trans_h4_uart_close(void);
  * @param len Data size needed to be sent.
  * 
  * @return int 
- * @retval  HM_SUCCESS          Send success.
- * @retval  HM_UART_SEND_ERR    H4 uart send error.
+ * @retval  HM_SUCCESS           Send success.
+ * @retval  -HM_UART_SEND_ERR    H4 uart send error.
  */
 int hci_trans_h4_uart_send(uint8_t *data, uint16_t len);
 

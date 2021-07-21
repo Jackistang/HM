@@ -58,32 +58,14 @@ extern int hci_trans_h4_open(void);
 extern int hci_trans_h4_close(void);
 
 
-// typedef void (*hci_trans_h4_package_callback_t)(uint8_t pkg_type, uint8_t *pkg, uint16_t size);
-
-// /**
-//  * @brief Register a callback for incoming package.
-//  * 
-//  * @param callback A callback function pointer.
-//  * 
-//  * @return int
-//  * @retval  HM_SUCCESS      Register success.
-//  * @retval  HM_NO_MEMORY    Malloc memory fail.
-//  * 
-//  * @note If use btstack, this callback is resposibility to free package buffer with `rt_mp_free()`.
-//  */
-// extern int hci_trans_h4_register_callback(hci_trans_h4_package_callback_t callback);
-
-
-// extern void hci_trans_h4_remove_callback(hci_trans_h4_package_callback_t callback);
-
 /**
- * @brief HCI transport h4 receive a byte from uart, used for hci_transport_h4.c .
+ * @brief HCI transport h4 receive a byte from uart, used for hci_transport_h4_uart.c .
  * 
  * @param byte A byte coming from uart.
  * 
  * @return int 
- * @retval  HM_SUCCESS      Receive byte success.
- * @retval  HM_NOT_SUPPORT  H4 sync loss, or this package not support now.
+ * @retval  HM_SUCCESS       Receive byte success.
+ * @retval  -HM_NOT_SUPPORT  H4 sync loss, or this package not support now.
  */
 extern int hci_trans_h4_recv_byte(uint8_t byte);
 
@@ -114,23 +96,68 @@ extern void hci_trans_h4_send_free(uint8_t *buf);
  * @param data HCI package data.
  * 
  * @return int 
- * @retval  HM_SUCCESS  Send success.
- * @retval  HM_NOT_SUPPORT  This type package not support now.
+ * @retval  HM_SUCCESS       Send success.
+ * @retval  -HM_NOT_SUPPORT  This type package not support now.
  */
 extern int hci_trans_h4_send(uint8_t type, uint8_t *data);
 
-// typedef void (*hci_vendor_evt_callback_t)(uint8_t *hci_evt, uint16_t len);
-
-// extern int hci_vendor_cmd_send_sync(uint8_t *hci_cmd, uint16_t len, int32_t time, hci_vendor_evt_callback_t callback);
-
-// extern int hci_cmd_send_sync(uint8_t *hci_cmd, uint16_t len, int32_t time);
-
-// extern int hci_reset_cmd_send(void);
-
+/**
+ * @brief HCI transport h4 receive a hci event.
+ * 
+ * @param buf   A pointer to hci event buffer when receive event successfully.
+ * @param ms    Waitting time in ms. Specially, 
+ *          RT_WAITING_NO means no wait, 
+ *          RT_WAITING_FOREVER means wait forever.
+ * 
+ * @return int 
+ * @retval  HM_SUCCESS      Read hci event success.
+ * @retval  -HM_TIMEOUT     Timeout.
+ * 
+ * @note If this function return successfully, `buf` should be 
+ *      freed with `hci_trans_h4_recv_free()` when it's not needed.
+ */
 int hci_trans_h4_recv_event(uint8_t **buf, int ms);
+
+/**
+ * @brief HCI transport h4 receive a hci acl packet.
+ * 
+ * @param buf   A pointer to hci acl packet buffer when receive acl packet successfully.
+ * @param ms    Waitting time in ms. Specially, 
+ *          RT_WAITING_NO means no wait, 
+ *          RT_WAITING_FOREVER means wait forever.
+ * 
+ * @return int 
+ * @retval  HM_SUCCESS      Read hci acl packet success.
+ * @retval  -HM_TIMEOUT     Timeout.
+ * 
+ * @note If this function return successfully, `buf` should be 
+ *      freed with `hci_trans_h4_recv_free()` when it's not needed.
+ */
 int hci_trans_h4_recv_acl(uint8_t **buf, int ms);
+
+/**
+ * @brief HCI transport h4 receive a packet, which type is not limited.
+ * 
+ * @param buf   A pointer to hci packet buffer when receive successfully.
+ * @param ms    Waitting time in ms. Specially, RT_WAITING_NO means no wait,
+ * @param type  A pointer to restore hci packet type.
+ * 
+ * @return int 
+ * @retval  HM_SUCCESS      Read hci acl packet success.
+ * @retval  -HM_TIMEOUT     Timeout.
+ * 
+ * @note If this function return successfully, `buf` should be 
+ *      freed with `hci_trans_h4_recv_free()` when it's not needed.
+ * 
+ * @note ms shouldn't be RT_WAITING_FOREVER.
+ */
 int hci_trans_h4_recv_all(uint8_t **buf, int ms, uint8_t *type);
 
+/**
+ * @brief Free memory buffer, which is alloc by `hci_trans_h4_recv_*` API.
+ * 
+ * @param p     Memory buffer.
+ */
 void hci_trans_h4_recv_free(uint8_t *p);
 
 #ifdef __cplusplus

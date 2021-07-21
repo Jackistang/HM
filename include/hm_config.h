@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-#define HM_CONFIG_BTSTACK   1
+#define HM_CONFIG_BTSTACK   1   /* Use btstack or not. */
 
 #ifdef __cplusplus
 }
