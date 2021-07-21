@@ -78,7 +78,7 @@ void test_chip_hci_cmd_send_evt_recv(void)
     uassert_buf_equal(recv, chipset_recv3, ARRAY_SIZE(chipset_recv3));
 }
 
-void test_csr8311_init(void)
+void test_chipset_init(void)
 {
     int err;
     uint8_t *p = NULL;
@@ -90,7 +90,7 @@ void test_csr8311_init(void)
 static void testcase_chipset(void)
 {
 //    UTEST_UNIT_RUN(test_chip_hci_cmd_send_evt_recv);
-    UTEST_UNIT_RUN(test_csr8311_init);
+    UTEST_UNIT_RUN(test_chipset_init);
 }
 UTEST_TC_EXPORT(testcase_chipset, "hm.chipset", utest_tc_init, utest_tc_cleanup, 1000);
 

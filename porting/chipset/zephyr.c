@@ -11,11 +11,23 @@ static uint8_t init_commands[] = {
 
 int chipset_zephyr_init(void)
 {
-    int err = hci_cmd_send_sync(init_commands, ARRAY_SIZE(init_commands), 1000, NULL);
-    if (err) {
-        rt_kprintf("Zephyr chipset init fail err(%d)\n", err);
+    uint8_t event_buf[20];
+
+    chip_send_hci_reset_cmd_until_ack();
+
+    rt_kprintf("Zephyr controller start init\n");
+
+    chip_hci_cmd_send(init_commands, ARRAY_SIZE(init_commands));
+
+    chip_hci_event_read(event_buf, ARRAY_SIZE(event_buf), RT_WAITING_FOREVER);
+    if (event_buf[0] != 0x0E) {
+        rt_kprintf("Zephyr controller init fail\n");
         return HM_CHIPSET_INIT_ERROR;
     }
+
+    chip_send_hci_reset_cmd_until_ack();
+
+    rt_kprintf("Zephyr controller init success\n");
 
     return HM_SUCCESS;
 }
