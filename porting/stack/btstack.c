@@ -3,23 +3,14 @@
 #include "hm_hci_transport_h4_uart.h"
 #include "btstack_debug.h"
 #include "btstack_config.h"
+#include "btstack_uart_block.h"
+#include "btstack_run_loop_rtthread.h"
 #include "hci.h"
 
 #include <rtthread.h>
 #include <rtdevice.h>
 
-// #define DATA_SOURCE_CALLBACK_READ   (1 << 1)
-
-static struct hci_trans_h4_config h4_config = {
-    .uart_config = {
-        .device_name = "uart3",             /* Default value */
-        .databit     = DATA_BITS_8,
-        .stopbit     = STOP_BITS_1,
-        .parity      = PARITY_NONE,
-        .baudrate    = BAUD_RATE_115200,    /* Default value */
-        .flowcontrol = 1,                   /* Default value */
-    },
-};
+static struct rt_timer btstack_poll;
 
 static void (*packet_handler)(uint8_t packet_type, uint8_t *packet, uint16_t size);
 
@@ -35,8 +26,9 @@ static void btstack_port_process_poll(btstack_data_source_t *ds)
     uint16_t len = 0;
 
     err = hci_trans_h4_recv_all(&p, RT_WAITING_NO, &type);
-    if (err)
-        return ;
+    if (err) {
+        goto err;
+    }
     
     switch (type) {
     case HCI_TRANS_H4_TYPE_EVT:
@@ -46,12 +38,16 @@ static void btstack_port_process_poll(btstack_data_source_t *ds)
         len = 4 + ((uint16_t)p[2] | ((uint16_t)p[3] << 8));
         break;
     default:
-        return ;
+        goto err;
     }
 
     packet_handler(type, p, len);
 
     hci_trans_h4_recv_free(p);
+
+err:
+    // trigger next poll with 1ms.
+    rt_timer_start(&btstack_poll);
 }
 
 static void btstack_port_process(btstack_data_source_t *ds, btstack_data_source_callback_type_t callback_type) 
@@ -66,35 +62,22 @@ static void btstack_port_process(btstack_data_source_t *ds, btstack_data_source_
     }
 }
 
+static void btstack_poll_trigger(void *parameter)
+{
+    UNUSED(parameter);
+    btstack_run_loop_rtthread_trigger();
+}
+
 static void hci_transport_h4_init(const void *transport_config)
 {
-    // check for hci_transport_config_uart_t
-    if (!transport_config) {
-        log_error("hci_transport_h4: no config!");
-        return;
-    }
-    if (((hci_transport_config_t*)transport_config)->type != HCI_TRANSPORT_CONFIG_UART) {
-        log_error("hci_transport_h4: config not of type != HCI_TRANSPORT_CONFIG_UART!");
-        return;
-    }
+    UNUSED(transport_config);
 
-    // extract UART config from transport config
-    hci_transport_config_uart_t * hci_transport_config_uart = (hci_transport_config_uart_t*) transport_config;
-    h4_config.uart_config.baudrate    = hci_transport_config_uart->baudrate_init;
-    h4_config.uart_config.flowcontrol = hci_transport_config_uart->flowcontrol;
-    h4_config.uart_config.device_name = hci_transport_config_uart->device_name;
-
-    hci_trans_h4_init(&h4_config);
+    rt_timer_init(&btstack_poll, "btstack.poll", btstack_poll_trigger, NULL, 
+                rt_tick_from_millisecond(1), RT_TIMER_FLAG_SOFT_TIMER | RT_TIMER_FLAG_ONE_SHOT);
 }
 
 static int hci_transport_h4_open(void)
 {
-    int err = hci_trans_h4_open();
-    if (err) {
-        log_error("hci_transport_h4_open error");
-        return -1;
-    }
-
     // set up data_source
     btstack_run_loop_set_data_source_fd(&btstack_port_data_source, fd);
     btstack_run_loop_set_data_source_handler(&btstack_port_data_source, &btstack_port_process);
@@ -108,12 +91,6 @@ static int hci_transport_h4_open(void)
 
 static int hci_transport_h4_close(void)
 {
-    int err = hci_trans_h4_close();
-    if (err) {
-        log_error("hci_transport_h4_close error");
-        return -1;
-    }
-
     // first remove run loop handler
     btstack_run_loop_remove_data_source(&btstack_port_data_source);
     btstack_port_data_source.source.fd = -1;
@@ -141,7 +118,7 @@ static int hci_transport_h4_send_packet(uint8_t packet_type, uint8_t *packet, in
 
     int err = hci_trans_h4_uart_send(packet, size);
 
-    // Notify btstack to release packet buffer.
+    // Notify btstack a packet has been sent, used to release packet buffer.
     static const uint8_t packet_sent_event[] = { HCI_EVENT_TRANSPORT_PACKET_SENT, 0};
     packet_handler(HCI_EVENT_PACKET, (uint8_t *) &packet_sent_event[0], sizeof(packet_sent_event));
 
@@ -176,24 +153,12 @@ const hci_transport_t * hci_transport_h4_instance(const btstack_uart_block_t * u
 
 static void chipset_init(const void * config)
 {
-    return ;
+    UNUSED(config);
 }
 
 static btstack_chipset_result_t chipset_next_command(uint8_t * hci_cmd_buffer)
 {
-    hm_chipset_t *chipset_instance = hm_chipset_get_instance();
-
-    if (!chipset_instance->init) {
-        return BTSTACK_CHIPSET_NO_INIT_SCRIPT;
-    }
-
-    int err = chipset_instance->init();
-    if (err) {
-        return BTSTACK_CHIPSET_NO_INIT_SCRIPT;
-    }
-
-    log_info("Chipset init success");
-
+    // Chipset init is not dependency with btstack chipset module.
     return BTSTACK_CHIPSET_DONE;
 }
 

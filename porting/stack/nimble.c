@@ -198,7 +198,7 @@ static void hm_nimble_thread_entry(void *args)
     }
 }
 
-static int hm_nimble_init(void)
+int hm_nimble_init(void)
 {
     int rc;
 
@@ -215,12 +215,6 @@ static int hm_nimble_init(void)
                            MYNEWT_VAL(BLE_ACL_BUF_COUNT));
     RT_ASSERT(rc == 0);
 
-    hci_trans_h4_init(&h4_config);
-    hci_trans_h4_open();
-
-    hm_chipset_t* chip = hm_chipset_get_instance();
-    chip->init();
-
     nimble_tid = rt_thread_create("hm.nimble", hm_nimble_thread_entry, NULL,
                                 512, 10, 10);
     RT_ASSERT(nimble_tid != NULL);
@@ -229,4 +223,3 @@ static int hm_nimble_init(void)
 
     return RT_EOK;
 }
-INIT_APP_EXPORT(hm_nimble_init);

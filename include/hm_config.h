@@ -5,8 +5,8 @@
 extern "C" {
 #endif
 
-#define HM_CONFIG_BTSTACK   0   /* Use btstack or not. */
-#define HM_CONFIG_NIMBLE    1   /* Use nimble or not */
+#define HM_CONFIG_BTSTACK   1   /* Use btstack or not. */
+#define HM_CONFIG_NIMBLE    0   /* Use nimble or not */
 
 #ifdef __cplusplus
 }
