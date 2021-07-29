@@ -11,11 +11,14 @@ src = Split('''
 # For stack choice
 src += [
 	'porting/stack/btstack.c'
+    # 'porting/stack/nimble.c'
 ]
 
 # For chipset choice
 src += [
-    'porting/chipset/csr8311.c'
+    # 'porting/chipset/bcm.c'
+    # 'porting/chipset/csr8311.c'
+    'porting/chipset/zephyr.c'
 ]
 
 # For test

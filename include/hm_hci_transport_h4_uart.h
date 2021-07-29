@@ -2,6 +2,7 @@
 #define HM_TRANS_H4_UART_H
 
 #include <rtthread.h>
+#include <rtdevice.h>
 
 #ifdef __cplusplus
 extern "C" {

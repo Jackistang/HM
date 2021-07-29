@@ -1,10 +1,14 @@
 /* hci middle header */
 #include "hm_hci_transport_h4.h"
+#include "hm_hci_transport_h4_uart.h"
 #include "hm_chipset.h"
 
 /* nimble header */
 #include "nimble/ble.h"
 #include "nimble/ble_hci_trans.h"
+#include "nimble/hci_common.h"
+#include "os/os_mempool.h"
+#include "os/os_mbuf.h"
 
 /* rt-thread header */
 #include <rtthread.h>
@@ -14,6 +18,20 @@ static void *ble_hci_uart_rx_cmd_arg;
 
 static ble_hci_trans_rx_acl_fn *ble_hci_uart_rx_acl_cb;
 static void *ble_hci_uart_rx_acl_arg;
+
+static struct os_mbuf_pool ble_hci_uart_acl_mbuf_pool;
+static struct os_mempool_ext ble_hci_uart_acl_pool;
+
+#define ACL_BLOCK_SIZE  OS_ALIGN(MYNEWT_VAL(BLE_ACL_BUF_SIZE) \
+                                 + BLE_MBUF_MEMBLOCK_OVERHEAD \
+                                 + BLE_HCI_DATA_HDR_SZ, OS_ALIGNMENT)
+
+static os_membuf_t ble_hci_uart_acl_buf[
+	OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_ACL_BUF_COUNT), 
+                    ACL_BLOCK_SIZE)  /* Now is only 1 block in this pool. */
+];
+
+static rt_thread_t nimble_tid;
 
 int ble_hci_trans_hs_cmd_tx(uint8_t *cmd)
 {
@@ -39,7 +57,7 @@ int ble_hci_trans_hs_acl_tx(struct os_mbuf *om)
         hci_trans_h4_uart_send(om->om_data, om->om_len);
 
         os_mbuf_free(om);
-        om = om->om_next;
+        om = om_next;
     }
 
     return 0;
@@ -75,9 +93,6 @@ void ble_hci_trans_buf_free(uint8_t *buf)
 
 int ble_hci_trans_set_acl_free_cb(os_mempool_put_fn *cb, void *arg)
 {
-    RT_UNUSED(cb);
-    RT_UNUSED(arg);
-
     return BLE_ERR_UNSUPPORTED;
 }
 
@@ -97,8 +112,6 @@ int ble_hci_trans_reset(void)
 {
     return BLE_ERR_SUCCESS;
 }
-
-/* TODO Create a thread to receive packet. */
 
 /* Not supported now. */
 int ble_hci_trans_ll_evt_tx(uint8_t *hci_ev)
@@ -122,5 +135,98 @@ void ble_hci_trans_cfg_ll(ble_hci_trans_rx_cmd_fn *cmd_cb,
 {
     RT_ASSERT(0);
 
-    return HM_NOT_SUPPORT;
+    return ;
 }
+
+static struct os_mbuf * ble_hci_trans_acl_buf_alloc(void)
+{
+    struct os_mbuf *m;
+    uint8_t usrhdr_len;
+
+#if MYNEWT_VAL(BLE_DEVICE)
+    usrhdr_len = sizeof(struct ble_mbuf_hdr);
+#elif MYNEWT_VAL(BLE_HS_FLOW_CTRL)
+    usrhdr_len = BLE_MBUF_HS_HDR_LEN;
+#else
+    usrhdr_len = 0;
+#endif
+
+    m = os_mbuf_get_pkthdr(&ble_hci_uart_acl_mbuf_pool, usrhdr_len);
+    return m;
+}
+
+static struct hci_trans_h4_config h4_config = {
+    .uart_config = {
+        .device_name = "uart1",             /* Default value */
+        .databit     = DATA_BITS_8,
+        .stopbit     = STOP_BITS_1,
+        .parity      = PARITY_NONE,
+        .baudrate    = BAUD_RATE_115200,    /* Default value */
+        .flowcontrol = 1,                   /* Default value */
+    },
+};
+
+static void hm_nimble_thread_entry(void *args)
+{
+    uint8_t *recv = NULL;
+    uint8_t type;
+    int err;
+
+    while (1) {
+        hci_trans_h4_recv_all(&recv, RT_WAITING_FOREVER, &type);
+        RT_ASSERT(recv != NULL);
+
+        switch (type) {
+        case HCI_TRANS_H4_TYPE_EVT: {
+            ble_hci_uart_rx_cmd_cb(recv, ble_hci_uart_rx_cmd_arg);
+            break;
+        }
+        case HCI_TRANS_H4_TYPE_ACL: {
+            struct os_mbuf *om = ble_hci_trans_acl_buf_alloc();
+            uint16_t packet_len = 4 + ((uint16_t)recv[2] | (uint16_t)recv[3] << 8);
+            RT_ASSERT(packet_len <= 255);
+
+            rt_memcpy(om->om_data, recv, packet_len);
+            hci_trans_h4_recv_free(recv);
+
+            om->om_len = packet_len;
+            OS_MBUF_PKTLEN(om) = packet_len;
+            ble_hci_uart_rx_acl_cb(om, ble_hci_uart_rx_acl_arg);
+            break;
+        }
+        }
+    }
+}
+
+static int hm_nimble_init(void)
+{
+    int rc;
+
+    rc = os_mempool_ext_init(&ble_hci_uart_acl_pool,
+                             MYNEWT_VAL(BLE_ACL_BUF_COUNT),
+                             ACL_BLOCK_SIZE,
+                             ble_hci_uart_acl_buf,
+                             "ble_hci_uart_acl_pool");
+    RT_ASSERT(rc == 0);
+
+    rc = os_mbuf_pool_init(&ble_hci_uart_acl_mbuf_pool,
+                           &ble_hci_uart_acl_pool.mpe_mp,
+                           ACL_BLOCK_SIZE,
+                           MYNEWT_VAL(BLE_ACL_BUF_COUNT));
+    RT_ASSERT(rc == 0);
+
+    hci_trans_h4_init(&h4_config);
+    hci_trans_h4_open();
+
+    hm_chipset_t* chip = hm_chipset_get_instance();
+    chip->init();
+
+    nimble_tid = rt_thread_create("hm.nimble", hm_nimble_thread_entry, NULL,
+                                512, 10, 10);
+    RT_ASSERT(nimble_tid != NULL);
+
+    rt_thread_startup(nimble_tid);
+
+    return RT_EOK;
+}
+INIT_APP_EXPORT(hm_nimble_init);

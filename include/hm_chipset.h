@@ -22,16 +22,6 @@ typedef struct hm_chipset {
 } hm_chipset_t;
 
 /**
- * @brief Init chipset module.
- * 
- * @param chip  Chipset instance.
- * 
- * @return int 
- * @retval  HM_SUCCESS  Success.
- */
-extern int chip_init(hm_chipset_t* chip);
-
-/**
  * @brief Get hci middleware chipset instance.
  * 
  * @return hm_chipset_t* 
