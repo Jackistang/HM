@@ -118,12 +118,7 @@ static int rt_btstack_main(int argc, const char * argv[]){
 
     // init HCI
     const hci_transport_t *transport = hci_transport_h4_instance(NULL);
-    // const btstack_uart_t * uart_driver = btstack_uart_posix_instance();
-	// const hci_transport_t * transport = hci_transport_h4_instance_for_uart(uart_driver);
 	hci_init(transport, NULL);
-
-// extern const btstack_chipset_t * btstack_chipset_hm_instance(void);
-//     hci_set_chipset(btstack_chipset_hm_instance());
     
     // inform about BTstack state
     hci_event_callback_registration.callback = &packet_handler;
