@@ -16,7 +16,7 @@ static struct hci_trans_h4_config h4_config = {
     },
 };
 
-static int hm_init(void)
+static void hm_thread_entry(void *args)
 {
     hci_trans_h4_init(&h4_config);
     hci_trans_h4_open();
@@ -31,6 +31,14 @@ static int hm_init(void)
 #if HM_CONFIG_BTSTACK
     btstack_rtthread_port_init();
 #endif
+
+}
+
+static int hm_init(void)
+{
+    rt_thread_t tid = rt_thread_create("hm", hm_thread_entry, NULL, 2048, 10, 10);
+    
+    rt_thread_startup(tid);
 
     return RT_EOK;
 }
