@@ -2,6 +2,8 @@ from building import *
 
 cwd  = GetCurrentDir()
 
+inc = []
+
 src = Split('''
     src/hci_transport_h4.c
     src/hci_transport_h4_uart.c
@@ -11,9 +13,11 @@ src = Split('''
 
 # For stack choice
 src += [
-	'porting/stack/btstack.c',
-    'porting/stack/btstack_rtthread_hm.c',
-    # 'porting/stack/nimble.c'
+	'porting/btstack/btstack.c',
+    'porting/btstack/btstack_rtthread_hm.c',
+]
+inc += [
+    cwd + '/porting/btstack'
 ]
 
 # For chipset choice
@@ -29,7 +33,7 @@ src += [
 #     'tests/chipset.c'
 # ]
 
-CPPPATH = [cwd + '/include']
+inc += [cwd + '/include']
 
-group = DefineGroup('hci-middleware', src, depend = [''], CPPPATH = CPPPATH)
+group = DefineGroup('hci-middleware', src, depend = [''], CPPPATH = inc)
 Return ('group')
