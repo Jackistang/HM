@@ -155,22 +155,10 @@ static struct os_mbuf * ble_hci_trans_acl_buf_alloc(void)
     return m;
 }
 
-static struct hci_trans_h4_config h4_config = {
-    .uart_config = {
-        .device_name = "uart1",             /* Default value */
-        .databit     = DATA_BITS_8,
-        .stopbit     = STOP_BITS_1,
-        .parity      = PARITY_NONE,
-        .baudrate    = BAUD_RATE_115200,    /* Default value */
-        .flowcontrol = 1,                   /* Default value */
-    },
-};
-
 static void hm_nimble_thread_entry(void *args)
 {
     uint8_t *recv = NULL;
     uint8_t type;
-    int err;
 
     while (1) {
         hci_trans_h4_recv_all(&recv, RT_WAITING_FOREVER, &type);

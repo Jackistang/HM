@@ -231,13 +231,13 @@ static int hci_trans_h4_alloc(uint8_t type, uint8_t **ptr)
     void *p = NULL;
     switch (type) {
     case HCI_TRANS_H4_TYPE_CMD:
-        p = rt_mp_alloc(&cmd_pool, RT_WAITING_NO);
+        p = rt_mp_alloc(&cmd_pool, RT_WAITING_FOREVER);
         break;
     case HCI_TRANS_H4_TYPE_EVT:
-        p = rt_mp_alloc(&evt_pool, RT_WAITING_NO);
+        p = rt_mp_alloc(&evt_pool, RT_WAITING_FOREVER);
         break;
     case HCI_TRANS_H4_TYPE_ACL:
-        p = rt_mp_alloc(&acl_pool, RT_WAITING_NO);
+        p = rt_mp_alloc(&acl_pool, RT_WAITING_FOREVER);
         break;
     case HCI_TRANS_H4_TYPE_SCO:
     case HCI_TRANS_H4_TYPE_ISO:

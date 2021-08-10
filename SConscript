@@ -12,13 +12,17 @@ src = Split('''
 ''')
 
 # For stack choice
+# src += [
+# 	'porting/btstack/btstack.c',
+#     'porting/btstack/btstack_rtthread_hm.c',
+# ]
+# inc += [
+#     cwd + '/porting/btstack'
+# ]
 src += [
-	'porting/btstack/btstack.c',
-    'porting/btstack/btstack_rtthread_hm.c',
+    'porting/nimble/nimble.c'
 ]
-inc += [
-    cwd + '/porting/btstack'
-]
+
 
 # For chipset choice
 src += [
