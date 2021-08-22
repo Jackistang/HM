@@ -85,6 +85,18 @@ qemu-system-arm -M vexpress-a9 -kernel rtthread.bin -nographic -serial mon:stdio
 
 可以看见发送了三条测试 HCI 命令，并且 Controller 返回了相应数据，因此 qemu 环境成功访问物理机的 Bluetooth Controller 。
 
+## 接入 Zephyr Controller
+
+
+
+```shell
+sudo btattach -B /dev/ttyACM0 -S 1000000 -R
+```
+
+
+
+![](images/image-20210722002742302.png)
+
 ----
 
 如何在搭建环境或者实际使用中遇到了问题，欢迎联系我。
