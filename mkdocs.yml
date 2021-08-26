@@ -1,0 +1,25 @@
+# 站点名
+site_name: HCI Middleware
+
+# 主题
+theme: readthedocs
+
+nav:
+  - Home: index.md
+  - 'Chipset':
+    - 'AP6212A': boards/AP6212A.md
+    - 'CSR8311': boards/CSR8311.md
+    - 'Zephyr':  boards/zephyr.md
+  - 'HCI':
+    - 'Data Format': HCI_dataformat.md
+    - 'Transport': HCI_Tramsport.md
+  - 'Others':
+    - 'qemu运行BLE': qemu.md
+    - 'ubuntu18.04 rtthread qemu 环境搭建': rtthread_ubuntu18.04_qemu环境搭建.md
+    - 'testcases': testcases.md
+    
+
+markdown_extensions:
+  - toc:
+      permalink: "#"
+      baselevel: 3
