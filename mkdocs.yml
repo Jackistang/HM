@@ -6,10 +6,7 @@ theme: readthedocs
 
 nav:
   - Home: index.md
-  - 'Chipset':
-    - 'AP6212A': boards/AP6212A.md
-    - 'CSR8311': boards/CSR8311.md
-    - 'Zephyr':  boards/zephyr.md
+  - 'Chipset': boards/Chipset.md
   - 'HCI':
     - 'Data Format': HCI_dataformat.md
     - 'Transport': HCI_Tramsport.md
