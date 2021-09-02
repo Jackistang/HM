@@ -32,10 +32,11 @@ src += [
 ]
 
 # For test
-# src += [
-#     'tests/hci_transport_h4.c',
-#     'tests/chipset.c'
-# ]
+src += [
+    # 'tests/hci_transport_h4.c',
+    # 'tests/chipset.c'
+    'tests/npl_os.c'
+]
 
 inc += [cwd + '/include']
 
