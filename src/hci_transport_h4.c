@@ -339,8 +339,10 @@ int hci_trans_h4_recv_acl(uint8_t **buf, int ms)
     return hci_trans_h4_recv(h4_object.acl_mb, buf, ms);
 }
 
+// If ms is RT_WAITING_FOREVER, then this function will not receive acl package.
+// TODO: Add poll mechanism.
 int hci_trans_h4_recv_all(uint8_t **buf, int ms, uint8_t *type)
-{
+{   
     if (hci_trans_h4_recv_event(buf, ms) == HM_SUCCESS) {
         *type = HCI_TRANS_H4_TYPE_EVT;
         return HM_SUCCESS;
@@ -351,6 +353,8 @@ int hci_trans_h4_recv_all(uint8_t **buf, int ms, uint8_t *type)
         return HM_SUCCESS;
     }
 
+    *buf = NULL;
+    *type = 0;
     return -HM_TIMEOUT;
 }
 

@@ -159,10 +159,13 @@ static void hm_nimble_thread_entry(void *args)
 {
     uint8_t *recv = NULL;
     uint8_t type;
+    int err;
 
     while (1) {
-        hci_trans_h4_recv_all(&recv, RT_WAITING_FOREVER, &type);
-        RT_ASSERT(recv != NULL);
+        err = hci_trans_h4_recv_all(&recv, 100, &type);
+        if (err) {
+            continue;
+        }
 
         switch (type) {
         case HCI_TRANS_H4_TYPE_EVT: {
