@@ -2,6 +2,7 @@
 #include "hm_hci_transport_h4.h"
 #include "hm_hci_transport_h4_uart.h"
 #include "hm_chipset.h"
+#include "hm_dump.h"
 
 /* nimble header */
 #include "nimble/ble.h"
@@ -35,6 +36,7 @@ static rt_thread_t nimble_tid;
 
 int ble_hci_trans_hs_cmd_tx(uint8_t *cmd)
 {
+    hm_dump_out(1, cmd);
     if (hci_trans_h4_send(HCI_TRANS_H4_TYPE_CMD, cmd)) {
         hci_trans_h4_send_free(cmd);
         return BLE_ERR_UNKNOWN_HCI_CMD;
@@ -169,10 +171,12 @@ static void hm_nimble_thread_entry(void *args)
 
         switch (type) {
         case HCI_TRANS_H4_TYPE_EVT: {
+            hm_dump_in(4, recv);
             ble_hci_uart_rx_cmd_cb(recv, ble_hci_uart_rx_cmd_arg);
             break;
         }
         case HCI_TRANS_H4_TYPE_ACL: {
+            hm_dump_in(2, recv);
             struct os_mbuf *om = ble_hci_trans_acl_buf_alloc();
             uint16_t packet_len = 4 + ((uint16_t)recv[2] | (uint16_t)recv[3] << 8);
             RT_ASSERT(packet_len <= 255);
