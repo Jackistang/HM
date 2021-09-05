@@ -33,10 +33,12 @@ int chip_hci_event_read(uint8_t *buf, uint16_t size, int ms)
 {
     uint8_t *p = NULL;
     int err;
+    uint8_t type;
 
-    err = hci_trans_h4_recv_event(&p, ms);
+    err = hci_trans_h4_recv_all(&p, ms, &type);
     if (err)
         return err;
+    RT_ASSERT(type == 4);   //< Event
 
     uint16_t len = 2 + p[1];    /* HCI Event length */
     len = (len > size) ? size : len;

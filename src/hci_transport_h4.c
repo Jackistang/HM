@@ -14,6 +14,7 @@ typedef enum {
     H4_RECV_STATE_ISO,
 } h4_recv_state_t;
 
+#define HM_MEMPOOL_ALLOC_TIMEOUT    10
 
 #define HCI_COMMAND_BUF_SIZE RT_ALIGN(255, RT_ALIGN_SIZE) 
 #define HCI_EVENT_BUF_SIZE   RT_ALIGN(255,  RT_ALIGN_SIZE)
@@ -47,8 +48,7 @@ struct h4_object {
     struct h4_rx rx;
     struct h4_tx tx;
 
-    rt_mailbox_t evt_mb;
-    rt_mailbox_t acl_mb;
+    rt_mailbox_t mb;
 };
 
 static struct h4_object h4_object;
@@ -62,7 +62,7 @@ static uint8_t cmd_pool_buf[MEMPOOL_SIZE(1, HCI_COMMAND_BUF_SIZE)];
 
 static struct rt_mempool evt_pool;
 ALIGN(RT_ALIGN_SIZE)
-static uint8_t evt_pool_buf[MEMPOOL_SIZE(2, HCI_EVENT_BUF_SIZE)];
+static uint8_t evt_pool_buf[MEMPOOL_SIZE(5, HCI_EVENT_BUF_SIZE)];
 
 static struct rt_mempool acl_pool;
 ALIGN(RT_ALIGN_SIZE)
@@ -74,8 +74,7 @@ void hci_trans_h4_init(struct hci_trans_h4_config *config)
     rt_mp_init(&evt_pool, "evt_pool", evt_pool_buf, ARRAY_SIZE(evt_pool_buf), HCI_EVENT_BUF_SIZE);
     rt_mp_init(&acl_pool, "acl_pool", acl_pool_buf, ARRAY_SIZE(acl_pool_buf), HCI_ACL_BUF_SIZE);
 
-    h4_object.evt_mb = rt_mb_create("evt.mb", 5, RT_IPC_FLAG_PRIO);
-    h4_object.acl_mb = rt_mb_create("acl.mb", 5, RT_IPC_FLAG_PRIO);
+    h4_object.mb = rt_mb_create("h4.mb", 10, RT_IPC_FLAG_PRIO);
 
     hci_trans_h4_uart_init(&config->uart_config);
 
@@ -140,6 +139,8 @@ static int h4_recv_acl(uint8_t byte)
         if ((err = hci_trans_h4_alloc(H4_RECV_STATE_ACL, &acl->data)))
             return err;
         rt_memset(acl->data, 0, HCI_ACL_BUF_SIZE);
+        acl->data[0] = 2;       //< Add H4 ACL type.
+        acl->data++;            //< Leave a byte of space for storage type
     }
 
     acl->data[acl->cur++] = byte;
@@ -154,7 +155,7 @@ static int h4_recv_acl(uint8_t byte)
 
     if (acl->cur == acl->len) {
         /* The user who receive mail from "event mailbox" is responsible for free it's memory.*/
-        err = rt_mb_send(h4_object.acl_mb, (rt_ubase_t)acl->data);
+        err = rt_mb_send(h4_object.mb, (rt_ubase_t)(acl->data-1));
         if (err) {
             rt_kprintf("acl mailbox send mail fail\n");
         }
@@ -175,6 +176,8 @@ static int h4_recv_evt(uint8_t byte)
             return err;
 
         rt_memset(evt->data, 0, HCI_EVENT_BUF_SIZE);
+        evt->data[0] = 4;       //< Add H4 Event type.
+        evt->data++;            //< Leave a byte of space for storage type
     }
 
     evt->data[evt->cur++] = byte;
@@ -187,7 +190,7 @@ static int h4_recv_evt(uint8_t byte)
     
     if (evt->cur == evt->len) {
         /* The user who receive mail from "event mailbox" is responsible for free it's memory.*/
-        err = rt_mb_send(h4_object.evt_mb, (rt_ubase_t)evt->data);
+        err = rt_mb_send(h4_object.mb, (rt_ubase_t)(evt->data-1));
         if (err) {
             rt_kprintf("event mailbox send mail fail\n");
         }
@@ -231,13 +234,13 @@ static int hci_trans_h4_alloc(uint8_t type, uint8_t **ptr)
     void *p = NULL;
     switch (type) {
     case HCI_TRANS_H4_TYPE_CMD:
-        p = rt_mp_alloc(&cmd_pool, RT_WAITING_FOREVER);
+        p = rt_mp_alloc(&cmd_pool, HM_MEMPOOL_ALLOC_TIMEOUT);
         break;
     case HCI_TRANS_H4_TYPE_EVT:
-        p = rt_mp_alloc(&evt_pool, RT_WAITING_FOREVER);
+        p = rt_mp_alloc(&evt_pool, HM_MEMPOOL_ALLOC_TIMEOUT);
         break;
     case HCI_TRANS_H4_TYPE_ACL:
-        p = rt_mp_alloc(&acl_pool, RT_WAITING_FOREVER);
+        p = rt_mp_alloc(&acl_pool, HM_MEMPOOL_ALLOC_TIMEOUT);
         break;
     case HCI_TRANS_H4_TYPE_SCO:
     case HCI_TRANS_H4_TYPE_ISO:
@@ -315,50 +318,22 @@ void hci_trans_h4_send_free(uint8_t *buf)
     hci_trans_h4_free(p);
 }
 
-static int hci_trans_h4_recv(rt_mailbox_t mb, uint8_t **buf, int ms)
-{
-    uint8_t *p = NULL;
+int hci_trans_h4_recv_all(uint8_t **buf, int ms, uint8_t *type)
+{   
+    uint8_t *recv = NULL;
+    rt_err_t err;
 
-    rt_err_t err = rt_mb_recv(mb, (rt_ubase_t *)&p, ms);
+    err = rt_mb_recv(h4_object.mb, (rt_ubase_t *)&recv, ms);
     if (err != RT_EOK)
         return -HM_TIMEOUT;
     
-    *buf = p;
-    return HM_SUCCESS;
-}
+    *type = *recv;
+    *buf = recv + 1;
 
-/* The user is responsible for free it's memory with `hci_trans_h4_recv_free()`.*/
-int hci_trans_h4_recv_event(uint8_t **buf, int ms)
-{
-    return hci_trans_h4_recv(h4_object.evt_mb, buf, ms);
-}
-
-/* The user is responsible for free it's memory with `hci_trans_h4_recv_free()`.*/
-int hci_trans_h4_recv_acl(uint8_t **buf, int ms)
-{
-    return hci_trans_h4_recv(h4_object.acl_mb, buf, ms);
-}
-
-// If ms is RT_WAITING_FOREVER, then this function will not receive acl package.
-// TODO: Add poll mechanism.
-int hci_trans_h4_recv_all(uint8_t **buf, int ms, uint8_t *type)
-{   
-    if (hci_trans_h4_recv_event(buf, ms) == HM_SUCCESS) {
-        *type = HCI_TRANS_H4_TYPE_EVT;
-        return HM_SUCCESS;
-    }
-
-    if (hci_trans_h4_recv_acl(buf, ms) == HM_SUCCESS) {
-        *type = HCI_TRANS_H4_TYPE_ACL;
-        return HM_SUCCESS;
-    }
-
-    *buf = NULL;
-    *type = 0;
-    return -HM_TIMEOUT;
+    return RT_EOK;
 }
 
 void hci_trans_h4_recv_free(uint8_t *p)
 {
-    hci_trans_h4_free(p);
+    hci_trans_h4_free(p - 1);
 }

@@ -161,13 +161,9 @@ static void hm_nimble_thread_entry(void *args)
 {
     uint8_t *recv = NULL;
     uint8_t type;
-    int err;
 
     while (1) {
-        err = hci_trans_h4_recv_all(&recv, 100, &type);
-        if (err) {
-            continue;
-        }
+        hci_trans_h4_recv_all(&recv, RT_WAITING_FOREVER, &type);
 
         switch (type) {
         case HCI_TRANS_H4_TYPE_EVT: {
@@ -189,6 +185,8 @@ static void hm_nimble_thread_entry(void *args)
             ble_hci_uart_rx_acl_cb(om, ble_hci_uart_rx_acl_arg);
             break;
         }
+        default:
+            break;
         }
     }
 }

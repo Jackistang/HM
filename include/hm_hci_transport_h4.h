@@ -102,40 +102,6 @@ extern void hci_trans_h4_send_free(uint8_t *buf);
 extern int hci_trans_h4_send(uint8_t type, uint8_t *data);
 
 /**
- * @brief HCI transport h4 receive a hci event.
- * 
- * @param buf   A pointer to hci event buffer when receive event successfully.
- * @param ms    Waitting time in ms. Specially, 
- *          RT_WAITING_NO means no wait, 
- *          RT_WAITING_FOREVER means wait forever.
- * 
- * @return int 
- * @retval  HM_SUCCESS      Read hci event success.
- * @retval  -HM_TIMEOUT     Timeout.
- * 
- * @note If this function return successfully, `buf` should be 
- *      freed with `hci_trans_h4_recv_free()` when it's not needed.
- */
-int hci_trans_h4_recv_event(uint8_t **buf, int ms);
-
-/**
- * @brief HCI transport h4 receive a hci acl packet.
- * 
- * @param buf   A pointer to hci acl packet buffer when receive acl packet successfully.
- * @param ms    Waitting time in ms. Specially, 
- *          RT_WAITING_NO means no wait, 
- *          RT_WAITING_FOREVER means wait forever.
- * 
- * @return int 
- * @retval  HM_SUCCESS      Read hci acl packet success.
- * @retval  -HM_TIMEOUT     Timeout.
- * 
- * @note If this function return successfully, `buf` should be 
- *      freed with `hci_trans_h4_recv_free()` when it's not needed.
- */
-int hci_trans_h4_recv_acl(uint8_t **buf, int ms);
-
-/**
  * @brief HCI transport h4 receive a packet, which type is not limited.
  * 
  * @param buf   A pointer to hci packet buffer when receive successfully.
