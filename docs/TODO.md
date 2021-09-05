@@ -22,3 +22,11 @@ ble_hs_id_set_rnd(random_addr);
 
 
 选用最新版的 NimBLE，NimBLE Controller 要关掉。
+
+
+
+![](images/image-20210903124503585.png)
+
+
+
+![](images/image-20210903133411018.png)
