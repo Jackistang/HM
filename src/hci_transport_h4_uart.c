@@ -29,10 +29,11 @@ void hci_trans_h4_uart_init(struct hci_trans_h4_uart_config *config)
     uart_config.name        = config->device_name;
     uart_config.flowcontrol = config->flowcontrol;
 
-    uart_config.rt_config.baud_rate = config->baudrate;
-    uart_config.rt_config.data_bits = config->databit;
-    uart_config.rt_config.stop_bits = config->stopbit;
-    uart_config.rt_config.parity    = config->parity;
+    uart_config.rt_config.baud_rate   = config->baudrate;
+    uart_config.rt_config.data_bits   = config->databit;
+    uart_config.rt_config.stop_bits   = config->stopbit;
+    uart_config.rt_config.parity      = config->parity;
+    uart_config.rt_config.flowcontrol = config->flowcontrol;
 }
 
 static void h4_uart_thread(void *args)
