@@ -13,6 +13,7 @@ nav:
   - 'Others':
     - 'qemu运行BLE': qemu.md
     - 'ubuntu18.04 rtthread qemu 环境搭建': rtthread_ubuntu18.04_qemu环境搭建.md
+    - 'rtthread qemu ble 环境': rtthread_qemu_ble.md
     - 'testcases': testcases.md
     
 
