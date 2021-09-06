@@ -33,7 +33,10 @@ void hci_trans_h4_uart_init(struct hci_trans_h4_uart_config *config)
     uart_config.rt_config.data_bits   = config->databit;
     uart_config.rt_config.stop_bits   = config->stopbit;
     uart_config.rt_config.parity      = config->parity;
+
+#if defined(RTTHREAD_VERSION) && RTTHREAD_VERSION > 40003    //< rtthread version larger than v4.0.3
     uart_config.rt_config.flowcontrol = config->flowcontrol;
+#endif
 }
 
 static void h4_uart_thread(void *args)
