@@ -7,11 +7,11 @@
 extern "C" {
 #endif
 
-#if HM_CONFIG_NIMBLE
+#ifdef HM_USING_STACK_NIMBLE
 extern int hm_nimble_init(void);
 #endif
 
-#if HM_CONFIG_BTSTACK
+#ifdef HM_USING_STACK_BTSTACK
 extern int btstack_rtthread_port_init(void);
 #endif
 

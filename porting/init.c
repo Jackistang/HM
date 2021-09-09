@@ -3,7 +3,7 @@
 #include "hm_hci_transport_h4.h"
 #include "init.h"
 
-#if HM_CONFIG_NIMBLE
+#ifdef HM_USING_STACK_NIMBLE
 #include "host/ble_hs_id.h"
 #endif
 
@@ -11,7 +11,7 @@
 
 static struct hci_trans_h4_config h4_config = {
     .uart_config = {
-        .device_name = "uart1",             /* Default value */
+        .device_name = "uart3",             /* Default value */
         .databit     = DATA_BITS_8,
         .stopbit     = STOP_BITS_1,
         .parity      = PARITY_NONE,
@@ -28,13 +28,13 @@ static void hm_thread_entry(void *args)
     hm_chipset_t *chipset_instance = hm_chipset_get_instance();
     chipset_instance->init();
 
-#if HM_CONFIG_NIMBLE
+#ifdef HM_USING_STACK_NIMBLE
     // uint8_t random_addr[6] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x06};
     // ble_hs_id_set_rnd(random_addr);
     hm_nimble_init();
 #endif
 
-#if HM_CONFIG_BTSTACK
+#ifdef HM_USING_STACK_BTSTACK
     btstack_rtthread_port_init();
 #endif
 
