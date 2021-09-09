@@ -104,3 +104,54 @@ hm_chipset_t* hm_chipset_get_instance(void)
 {
     return &chipset_bcm;
 }
+
+
+#ifdef HM_USING_BOARD_ART_PI
+
+#define BT_FIRMWARE_PARTITION_NAME "bt_image"
+static int bt_firmware_create(void)
+{
+    rt_kprintf("bt firmware start create.\n");
+
+    rt_device_t bt_firmware = RT_NULL;
+    const struct fal_partition *bt_partition = RT_NULL;
+
+    bt_partition = fal_partition_find(BT_FIRMWARE_PARTITION_NAME);
+    if (bt_partition == NULL)
+    {
+        rt_kprintf("%s partition is not exist, please check your configuration!\n", BT_FIRMWARE_PARTITION_NAME);
+        return -1;
+    }
+
+    //create bt device fs
+    bt_firmware = fal_char_device_create(BT_FIRMWARE_PARTITION_NAME);
+    if (bt_firmware == NULL)
+    {
+        rt_kprintf("bt firmware device create failed\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+#include <spi_flash.h>
+#include <drv_spi.h>
+static int rt_flash_init(void)
+{
+    extern rt_spi_flash_device_t rt_sfud_flash_probe(const char *spi_flash_dev_name, const char *spi_dev_name);
+    extern int fal_init(void);
+
+    rt_hw_spi_device_attach("spi1", "spi10", GPIOA, GPIO_PIN_4);
+
+    /* initialize SPI Flash device */
+    rt_sfud_flash_probe("norflash0", "spi10");
+
+    fal_init();
+
+    bt_firmware_create();
+
+    return 0;
+}
+INIT_ENV_EXPORT(rt_flash_init);
+
+#endif
