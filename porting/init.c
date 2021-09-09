@@ -29,8 +29,6 @@ static void hm_thread_entry(void *args)
     chipset_instance->init();
 
 #ifdef HM_USING_STACK_NIMBLE
-    // uint8_t random_addr[6] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x06};
-    // ble_hs_id_set_rnd(random_addr);
     hm_nimble_init();
 #endif
 
