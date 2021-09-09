@@ -1,8 +1,7 @@
 from building import *
 
 cwd  = GetCurrentDir()
-
-inc = []
+CPPPATH = [cwd + '/include']
 
 src = Split('''
     src/hci_transport_h4.c
@@ -12,34 +11,37 @@ src = Split('''
     porting/init.c
 ''')
 
-# For stack choice
-# src += [
-# 	'porting/btstack/btstack.c',
-#     'porting/btstack/btstack_rtthread_hm.c',
-# ]
-# inc += [
-#     cwd + '/porting/btstack'
-# ]
-src += [
-    'porting/nimble/nimble.c'
-]
+# For stack choice.
+if GetDepend(['HM_USING_STACK']):
+    # Use BTStack
+    if GetDepend(['HM_USING_STACK_BTSTACK']):
+        src += Glob('porting/btstack/*.c')
+        CPPPATH += [cwd + '/porting/btstack']
+
+    # Use NimBLE
+    elif GetDepend(['HM_USING_STACK_NIMBLE']):
+        src += Glob('porting/nimble/nimble.c')
+
+# For chipset choice.
+if GetDepend(['HM_USING_CHIPSET']):
+    # Chipset choice
+    if GetDepend(['HM_USING_CHIPSET_BCM']):
+        src += ['porting/chipset/bcm.c']
+
+    elif GetDepend(['HM_USING_CHIPSET_CSR8311']):
+        src += ['porting/chipset/csr8311.c']
+
+    elif GetDepend(['HM_USING_CHIPSET_ZEPHYR']):
+        src += ['porting/chipset/zephyr.c']
 
 
-# For chipset choice
-src += [
-    # 'porting/chipset/bcm.c',
-    # 'porting/chipset/csr8311.c',
-    'porting/chipset/zephyr.c'
-]
+# For test.
+if GetDepend(['HM_USING_TEST']):
+    src += [
+        # 'tests/hci_transport_h4.c',
+        # 'tests/chipset.c'
+        # 'tests/npl_os.c'
+    ]
 
-# For test
-src += [
-    # 'tests/hci_transport_h4.c',
-    # 'tests/chipset.c'
-    'tests/npl_os.c'
-]
-
-inc += [cwd + '/include']
-
-group = DefineGroup('hci-middleware', src, depend = [''], CPPPATH = inc)
+group = DefineGroup('hm', src, depend = [''], CPPPATH = CPPPATH)
 Return ('group')
