@@ -9,6 +9,8 @@ src = Split('''
     src/chipset.c
     src/hm_dump.c
     porting/init.c
+
+    examples/advertisement.c
 ''')
 
 # For stack choice.
